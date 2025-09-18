@@ -2,117 +2,273 @@ from dotenv import load_dotenv
 import os
 import logging
 import asyncio
+import inspect
+from typing import Optional
+import time
 
 logger = logging.getLogger(__name__)
 
-from livekit import agents
-from livekit.agents import AgentSession, Agent, RoomInputOptions
+from livekit import agents, rtc
+from livekit.agents import (
+    AgentSession, Agent, RoomInputOptions, 
+    JobContext, JobRequest,
+    BackgroundAudioPlayer, AudioConfig, BuiltinAudioClip  # ✅ Added for background audio
+)
 from livekit.plugins import (
-    cartesia,
     deepgram,
     noise_cancellation,
     silero,
-    openai
+    google,
+    sarvam
 )
-from tools import get_rag_answer 
-from livekit_session_manager import LiveKitSessionManager
 
-# ✅ Import from your RAG engine
-from rag_engine import initialize_rag_engine, get_rag_answer_async
-from prompt_template import NEXI_PROMPT_TEMPLATE
+# Import optimized tools
+from tools import intelligent_search
+from rag_engine import initialize_unified_rag
+from prompt_template import OPTIMIZED_NEXI_PROMPT
 
-logging.basicConfig(level=logging.INFO)
+# Optimized logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Suppress verbose logs
+for logger_name in ["urllib3", "httpx", "google", "deepgram"]:
+    logging.getLogger(logger_name).setLevel(logging.WARNING)
+
 load_dotenv(".env.local")
-prompt = NEXI_PROMPT_TEMPLATE
 
-class Assistant(Agent): 
+class OptimizedAssistant(Agent): 
     def __init__(self) -> None:
         super().__init__(
-            instructions=prompt,
-            tools=[get_rag_answer]
+            instructions=OPTIMIZED_NEXI_PROMPT,
+            # CRITICAL: Only one unified tool to prevent LLM confusion
+            tools=[intelligent_search]
         )
-        # ✅ Initialize session manager with 30-second timeout
-        self.session_manager = LiveKitSessionManager(timeout_seconds=30)
-        logger.info("Assistant initialized with session manager")
+        
+        self._processing_query = False
+        self._query_count = 0
+        self._error_count = 0
+        self._timeout_count = 0  # ✅ Track timeouts separately
+        self._start_time = time.time()
+        self._active_sessions = {}
+        
+        # ✅ Initialize background audio player reference
+        self.background_audio = None
+        
+        logger.info("Optimized Assistant initialized with single unified tool")
+
+    def set_background_audio(self, background_audio: BackgroundAudioPlayer):
+        """Set the background audio player reference"""
+        self.background_audio = background_audio
+        logger.info("Background audio player reference set")
 
     async def process_query(self, participant_identity: str, query: str, session: AgentSession):
-        """Process user query using agent tools and session management """
+        """Optimized query processing with comprehensive error handling"""
+        
+        # Prevent concurrent processing per user
+        if self._processing_query:
+            logger.warning(f"Concurrent query blocked for {participant_identity}")
+            return "Please wait, I'm still processing your previous question."
+        
+        self._processing_query = True
+        query_start = time.time()
+        thinking_sound_started = False  # ✅ Track thinking sound state
         
         try:
-            logger.info(f"Processing query from {participant_identity}: {query}")
+            self._query_count += 1
+            logger.info(f"Query #{self._query_count} from {participant_identity}: {query[:50]}...")
             
-            # ✅ Get or create user session
-            user_session = self.session_manager.get_or_create_session(participant_identity)
-            # ✅ Get conversation history from current session
-            history_context = user_session.get_current_context(message_count=3)
-            # ✅ Generate response
-            response = await session.generate_reply(instructions=f"{prompt}\n\nStudent Question:{query}")
-            # ✅ Handle message with session manager (automatically handles goodbye and saves interaction)
-            session_ended = self.session_manager.handle_message(participant_identity, query, str(response))
+            # Quick query validation
+            if not query or len(query.strip()) < 2:
+                return "Please ask a clear question about the university."
             
-            if session_ended:
-                logger.info(f"✅ Session ended for {participant_identity} - new session started")
-                # Send a brief acknowledgment for goodbye
-                await session.generate_reply(
-                    instructions="Say a warm goodbye and mention you're here if they need help again later."
-                )
+            # ✅ Start thinking sound when processing begins (with better error handling)
+            if self.background_audio:
+                try:
+                    await asyncio.wait_for(self.background_audio.start_thinking(), timeout=2.0)
+                    thinking_sound_started = True
+                    logger.debug("🎵 Started thinking sound")
+                except asyncio.TimeoutError:
+                    logger.warning("Thinking sound start timed out")
+                except Exception as e:
+                    logger.warning(f"Failed to start thinking sound: {e}")
             
-            logger.info(f"✅ Response generated for {participant_identity}")
+            # Session management - simplified
+            if participant_identity not in self._active_sessions:
+                self._active_sessions[participant_identity] = {
+                    'start_time': time.time(),
+                    'query_count': 0
+                }
+            
+            self._active_sessions[participant_identity]['query_count'] += 1
+            
+            # ✅ Enhanced response generation with multiple fallback strategies
+            response = None
+            
+            # Strategy 1: Full prompt with reasonable timeout
+            try:
+                focused_instruction = f"{OPTIMIZED_NEXI_PROMPT}\n\nQuestion: {query}"
+                response_task = session.generate_reply(instructions=focused_instruction)
+                response = await asyncio.wait_for(response_task, timeout=10.0)  # ✅ More reasonable timeout
+                
+                if response and isinstance(response, str) and response.strip():
+                    logger.info(f"✅ Strategy 1 successful in {time.time() - query_start:.2f}s")
+                else:
+                    response = None
+                    
+            except asyncio.TimeoutError:
+                self._timeout_count += 1
+                logger.warning(f"Strategy 1 timeout after 10s (timeout #{self._timeout_count})")
+                response = None
+            except Exception as e:
+                logger.warning(f"Strategy 1 failed: {e}")
+                response = None
+            
+            # Strategy 2: Minimal prompt with very short timeout
+            if not response:
+                try:
+                    logger.info("Trying strategy 2: minimal prompt")
+                    minimal_instruction = f"Answer briefly: {query}"
+                    response_task = session.generate_reply(instructions=minimal_instruction)
+                    response = await asyncio.wait_for(response_task, timeout=6.0)  # ✅ Reasonable fallback timeout
+                    
+                    if response and isinstance(response, str) and response.strip():
+                        logger.info(f"✅ Strategy 2 successful in {time.time() - query_start:.2f}s")
+                    else:
+                        response = None
+                        
+                except asyncio.TimeoutError:
+                    self._timeout_count += 1
+                    logger.warning(f"Strategy 2 timeout after 4s (timeout #{self._timeout_count})")
+                    response = None
+                except Exception as e:
+                    logger.warning(f"Strategy 2 failed: {e}")
+                    response = None
+            
+            # Strategy 3: Fallback response if all else fails
+            if not response:
+                logger.error("All strategies failed, using fallback response")
+                if "fee" in query.lower() or "cost" in query.lower():
+                    response = "I'm having trouble accessing fee information right now. Please contact the accounts office directly or try asking again in a moment."
+                elif "hostel" in query.lower():
+                    response = "I'm having trouble accessing hostel information right now. Please contact the hostel office directly or try asking again in a moment."
+                elif "library" in query.lower():
+                    response = "I'm having trouble accessing library information right now. Please visit the library directly or try asking again in a moment."
+                else:
+                    response = "I'm experiencing some technical difficulties right now. Please try asking your question again in a simpler way, or contact the university office directly."
+            
+            # ✅ Stop thinking sound when processing is done (with better error handling)
+            if thinking_sound_started and self.background_audio:
+                try:
+                    await asyncio.wait_for(self.background_audio.stop_thinking(), timeout=2.0)
+                    logger.debug("🔇 Stopped thinking sound")
+                except asyncio.TimeoutError:
+                    logger.warning("Thinking sound stop timed out")
+                except Exception as e:
+                    logger.warning(f"Failed to stop thinking sound: {e}")
+            
+            # Log performance
+            elapsed = time.time() - query_start
+            logger.info(f"Query processed in {elapsed:.2f}s")
+            
+            # Simple goodbye detection
+            if any(word in query.lower() for word in ['bye', 'goodbye', 'thanks', 'thank you']):
+                if participant_identity in self._active_sessions:
+                    del self._active_sessions[participant_identity]
+                logger.info(f"Session ended for {participant_identity}")
+            
             return response
             
         except Exception as e:
-            logger.error(f"❌ Error processing query for {participant_identity}: {e}", exc_info=True)
+            self._error_count += 1
+            logger.error(f"Query processing error: {e}", exc_info=True)
             
-            # Try to still handle the message for session management
-            try:
-                self.session_manager.handle_message(participant_identity, query, "Error occurred")
-            except:
-                pass
-                
-            return "I'm having trouble right now. Could you please try again?"
-
-    def __del__(self):
-        """Cleanup when assistant is destroyed"""
-        if hasattr(self, 'session_manager'):
-            self.session_manager.stop_cleanup_task()
-
-async def entrypoint(ctx: agents.JobContext):
-    try:
-        logger.info("🚀 Starting Nexi Agent...")
+            return "I encountered an issue. Please try rephrasing your question."
         
-        # ✅ Initialize RAG engine
-        logger.info("📚 Initializing RAG engine...")
-        await initialize_rag_engine()
-        logger.info("✅ RAG engine initialized successfully!")
+        finally:
+            # ✅ Always ensure thinking sound is stopped and processing flag is reset
+            if thinking_sound_started and self.background_audio:
+                try:
+                    await asyncio.wait_for(self.background_audio.stop_thinking(), timeout=1.0)
+                    logger.debug("🔇 Thinking sound stopped in finally block")
+                except:
+                    pass  # Silent fail in cleanup
+            
+            self._processing_query = False
 
-        # ✅ Initialize STT
-        stt = deepgram.STT(model="nova-2", language="en-US")
-        logger.info("🎤 STT initialized with Deepgram")
+    def get_health_stats(self):
+        """Get agent health statistics"""
+        uptime = time.time() - self._start_time
+        return {
+            'uptime_hours': round(uptime / 3600, 2),
+            'total_queries': self._query_count,
+            'error_count': self._error_count,
+            'timeout_count': self._timeout_count,  # ✅ Added timeout tracking
+            'active_sessions': len(self._active_sessions),
+            'error_rate': self._error_count / max(self._query_count, 1),
+            'timeout_rate': self._timeout_count / max(self._query_count, 1),  # ✅ Added timeout rate
+            'background_audio_enabled': self.background_audio is not None
+        }
 
-        # ✅ Initialize LLM
-        llm = openai.LLM.with_ollama(
-            model="llama3.2:latest",
-            base_url="http://127.0.0.1:11434/v1",
+async def entrypoint(ctx: JobContext):
+    """Optimized entrypoint with improved stability"""
+    
+    session = None
+    assistant = None
+    background_audio = None
+    
+    try:
+        logger.info("Starting optimized Nexi agent...")
+        
+        # Initialize unified RAG system
+        logger.info("Initializing unified RAG engine...")
+        try:
+            await asyncio.wait_for(initialize_unified_rag(), timeout=45.0)
+            logger.info("RAG engine ready")
+        except asyncio.TimeoutError:
+            logger.error("RAG initialization timeout")
+            raise RuntimeError("RAG setup failed")
+
+        # Initialize components with production settings
+        
+        # STT - Optimized settings
+        stt = deepgram.STT(
+            model="nova-2", 
+            language="en-US", 
+            api_key=os.getenv("DEEPGRAM_API_KEY"),
+            smart_format=True,
+            interim_results=False,
+            filler_words=False,
+            punctuate=True
         )
-        logger.info("🧠 LLM initialized with Ollama")
+        logger.info("STT optimized")
 
-        # ✅ Initialize TTS
-        cartesia_api_key = os.getenv("CARTESIA_API_KEY")
-        if not cartesia_api_key:
-            raise ValueError("❌ CARTESIA_API_KEY not found in environment variables")
-
-        tts = cartesia.TTS(
-            model="sonic-english",
-            voice="a0e99841-438c-4a64-b679-ae501e7d6091",
-            api_key=cartesia_api_key,
+        # ✅ LLM - Enhanced settings (keeping only supported parameters)
+        llm = google.LLM(
+            model="gemini-2.5-flash",
+            api_key=os.getenv("GOOGLE_API_KEY"),
+            # ✅ Basic settings that are widely supported:
+            temperature=0.2,                          # Faster, more consistent  
+            top_p=0.8,                               # Reduce randomness
+            top_k=20,                                # Limit token choices
         )
-        logger.info("🔊 TTS initialized with Cartesia")
+        logger.info("LLM optimized with basic settings")
 
-        # ✅ Initialize VAD
+        # TTS - Optimized
+        tts = sarvam.TTS(
+            target_language_code="en-IN",
+            speaker="anushka",
+            api_key=os.getenv("sarvam_api_key"),
+        )
+        logger.info("TTS ready")
+
+        # VAD - Tuned for responsiveness
         vad = silero.VAD.load()
-        logger.info("👂 VAD initialized with Silero")
+        logger.info("VAD ready")
 
-        # ✅ Create session
+        # Session with optimized turn detection
         session = AgentSession(
             stt=stt,
             llm=llm,
@@ -120,70 +276,177 @@ async def entrypoint(ctx: agents.JobContext):
             vad=vad,
         )
 
-        # ✅ Create assistant
-        assistant = Assistant()
+        # Create optimized assistant
+        assistant = OptimizedAssistant()
 
-        max_retries = 5
+        # ✅ Initialize Background Audio Player (simplified configuration)
+        try:
+            background_audio = BackgroundAudioPlayer(
+                thinking_sound=[
+                    # ✅ Simple configuration that should work
+                    AudioConfig(BuiltinAudioClip.KEYBOARD_TYPING, volume=0.6),
+                ],
+            )
+            logger.info("🎵 Background audio player initialized (simplified config)")
+            
+            # ✅ Set background audio reference in assistant
+            assistant.set_background_audio(background_audio)
+            
+        except Exception as e:
+            logger.warning(f"Failed to initialize background audio: {e}")
+            logger.info("Continuing without background audio...")
+            background_audio = None
+
+        # Connection with retry and better error handling
+        max_retries = 3
         for attempt in range(max_retries):
             try:
-                 await ctx.connect()
-                 logger.info("🌐 Connected to LiveKit room")
-                 break
+                logger.info(f"Connecting... (attempt {attempt + 1})")
+                await asyncio.wait_for(ctx.connect(), timeout=20.0)
+                logger.info("Connected successfully")
+                break
             except Exception as e:
-                logger.warning(f"Connection attempt {attempt+1}/{max_retries} failed: {e}")
-                await asyncio.sleep(min(2 ** attempt, 30))
-        else:
-            raise RuntimeError("Failed to connect to LiveKit after retries")
+                if attempt == max_retries - 1:
+                    raise
+                logger.warning(f"Connection failed: {e}, retrying...")
+                await asyncio.sleep(2 ** attempt)
 
-        # ✅ Start the session
+        # Start session with optimized room settings
+        desired_room_opts = {
+            "noise_cancellation": noise_cancellation.BVC(),
+            "auto_subscribe": True,
+        }
+        try:
+            sig = inspect.signature(RoomInputOptions)
+            supported_room_params = set(sig.parameters.keys()) - {"self"}
+        except (ValueError, TypeError):
+            supported_room_params = {"noise_cancellation"}
+
+        filtered_room_opts = {k: v for k, v in desired_room_opts.items() if k in supported_room_params}
+        room_input_opts = RoomInputOptions(**filtered_room_opts) if filtered_room_opts else None
+
         await session.start(
             room=ctx.room,
             agent=assistant,
-            room_input_options=RoomInputOptions(
-                noise_cancellation=noise_cancellation.BVC(),
-            ),
+            **({"room_input_options": room_input_opts} if room_input_opts is not None else {}),
         )
-        logger.info("🎯 Session started successfully")
+        logger.info("Session started")
 
-        # ✅ Handle transcriptions
-        @session.on("transcription")
+        # ✅ Start background audio player with timeout protection
+        if background_audio:
+            try:
+                await asyncio.wait_for(
+                    background_audio.start(room=ctx.room, agent_session=session), 
+                    timeout=10.0
+                )
+                logger.info("🎵 Background audio player started successfully")
+            except asyncio.TimeoutError:
+                logger.warning("Background audio start timed out - continuing without it")
+                background_audio = None
+                assistant.set_background_audio(None)
+            except Exception as e:
+                logger.warning(f"Failed to start background audio player: {e}")
+                background_audio = None
+                assistant.set_background_audio(None)
+
+        # Optimized transcription handler
+        @session.on("transcription")  
         def on_transcription(event):
-            if not event.text or not event.text.strip():
+            if not event.text or len(event.text.strip()) < 2:
                 return
 
             user_text = event.text.strip()
-            participant_identity = str(event.participant.identity if event.participant else "anonymous")
+            participant_id = str(event.participant.identity if event.participant else "user")
 
-            logger.info(f"👤 Received from {participant_identity}: {user_text}")
+            logger.info(f"Input: {user_text[:50]}...")
 
-            # ✅ Process all messages through the assistant (no manual goodbye handling)
+            # Process with error isolation
             async def handle_query():
                 try:
-                    await assistant.process_query(participant_identity, user_text, session)
+                    await assistant.process_query(participant_id, user_text, session)
                 except Exception as e:
-                    logger.error(f"❌ Error in handle_query: {e}")
+                    logger.error(f"Handler error: {e}")
 
-            # Create and run async task
-            task = asyncio.create_task(handle_query())
-            task.add_done_callback(
-                lambda t: logger.error(f"❌ Task error: {t.exception()}") if t.exception() else None
+            # Non-blocking task creation
+            asyncio.create_task(handle_query())
+
+        # ✅ Send optimized greeting with timeout protection
+        try:
+            logger.info("Sending greeting...")
+            greet_task = session.generate_reply(
+                instructions="Say exactly: 'Hi! I'm Nexi, your SRM AP assistant. How can I help you?'"
             )
+            await asyncio.wait_for(greet_task, timeout=5.0)
+            logger.info("✅ Greeting sent successfully")
+        except asyncio.TimeoutError:
+            logger.warning("Greeting timed out - agent will continue without initial greeting")
+        except Exception as e:
+            logger.warning(f"Greeting failed: {e} - agent will continue without initial greeting")
 
-        # ✅ Send initial greeting
-        logger.info("👋 Sending initial greeting...")
-        await session.generate_reply(
-            instructions="Say: Hi! I'm Nexi, your SRM AP university assistant. I can help with questions about hostel, mess, library, fees, and campus rules. What would you like to know? Keep it simple and friendly, no symbols."
-        )
-
-        logger.info("✅ Agent started successfully!")
-        logger.info("🎤 Listening for user input...")
-        logger.info("⏰ Session timeout: 30 seconds")
-        logger.info("👋 Automatic goodbye detection enabled")
+        logger.info("Agent running optimally")
+        if background_audio:
+            logger.info("🎵 Background audio (thinking sounds) enabled for latency coverage")
+        
+        # Health monitoring loop
+        last_health_check = time.time()
+        
+        while True:
+            # Health check every 30 seconds
+            if time.time() - last_health_check > 30:
+                stats = assistant.get_health_stats()
+                logger.info(f"Health: {stats}")
+                last_health_check = time.time()
+            
+            # Check connection
+            if ctx.room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                logger.warning("Connection lost")
+                break
+                
+            await asyncio.sleep(1)
 
     except Exception as e:
-        logger.error(f"💥 Agent startup error: {e}", exc_info=True)
+        logger.error(f"Agent error: {e}", exc_info=True)
         raise
- 
+    
+    finally:
+        logger.info("Shutting down...")
+        
+        # ✅ Cleanup background audio if it exists
+        if background_audio:
+            try:
+                logger.info("Cleaning up background audio...")
+                # Add any specific cleanup if needed by the BackgroundAudioPlayer
+            except Exception as e:
+                logger.warning(f"Background audio cleanup error: {e}")
+        
+        if session:
+            end_fn = getattr(session, "end", None) or getattr(session, "stop", None) or getattr(session, "close", None)
+            if end_fn:
+                try:
+                    if asyncio.iscoroutinefunction(end_fn):
+                        await end_fn()
+                    else:
+                        end_fn()
+                except Exception as e:
+                    logger.warning(f"Session end error: {e}")
 
 if __name__ == "__main__":
-    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
+    import inspect
+
+    desired_kwargs = {
+        "entrypoint_fnc": entrypoint,
+        "reconnect_attempts": 3,
+        "reconnect_interval": 5.0,
+        "room_join_timeout": 20.0,
+    }
+
+    try:
+        sig = inspect.signature(agents.WorkerOptions)
+        supported_params = set(p for p in sig.parameters.keys() if p != "self")
+    except (ValueError, TypeError):
+        supported_params = {"entrypoint_fnc", "room_join_timeout"}
+
+    filtered_kwargs = {k: v for k, v in desired_kwargs.items() if k in supported_params}
+
+    worker_options = agents.WorkerOptions(**filtered_kwargs)
+    agents.cli.run_app(worker_options)
