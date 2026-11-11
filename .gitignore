@@ -28,3 +28,20 @@ Demo/
 agent.py
 error_log.md
 __pycache__
+
+# Phase 0: local environments, credentials, generated knowledge and snapshots
+.venv/
+.venv-*/
+.local-baseline/
+.env.*
+!.env.example
+*.py[cod]
+.ruff_cache/
+*.egg-info/
+uv.lock
+data/knowledge/
+data/telemetry/
+*.sqlite3
+*.sqlite3-*
+*.db-wal
+*.db-shm
