@@ -67,6 +67,16 @@ def mask_phone_number(raw: str) -> str:
     return "***"
 
 
+def pick_noise_cancellation(participant_kind: rtc.ParticipantKind):
+    """Choose the noise-cancellation profile by participant kind.
+
+    SIP (telephony) callers use BVCTelephony; regular web participants use standard BVC.
+    """
+    if participant_kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP:
+        return noise_cancellation.BVCTelephony()
+    return noise_cancellation.BVC()
+
+
 def prewarm(proc: JobProcess) -> None:
     settings = load_settings()
     configure_logging(settings.log_level)
@@ -199,11 +209,7 @@ async def entrypoint(ctx: JobContext) -> None:
                 event("channel_metadata_mismatch", call_id=state.call_id, channel=state.channel)
             room_options.participant_identity = participant.identity
             if settings.noise_cancellation:
-                room_options.noise_cancellation = (
-                    noise_cancellation.BVCTelephony()
-                    if state.channel == "phone"
-                    else noise_cancellation.BVC()
-                )
+                room_options.noise_cancellation = pick_noise_cancellation(participant.kind)
 
         stt = deepgram.STT(
             model=settings.stt_model,

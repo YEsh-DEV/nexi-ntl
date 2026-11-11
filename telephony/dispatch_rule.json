@@ -1,0 +1,19 @@
+{
+  "$schema": "https://example.com/nexi/telephony/dispatch-rule/v1.schema.json",
+  "version": 1,
+  "description": "Phase 3 dispatch rule template. Inbound calls on nexi-inbound-trunk are routed to the\nNexi agent in a scoped LiveKit room. Re-applying must not create duplicate trunks or rules.",
+  "trunk": "nexi-inbound-trunk",
+  "dispatch": {
+    "agent_name": "nexi",
+    "room_prefix": "nexi-phone-",
+    "room_per_call": true,
+    "metadata_template": {
+      "channel": "phone",
+      "language": "en"
+    },
+    "named_dispatch": true
+  },
+  "routing": {
+    "description": "All inbound calls on nexi-inbound-trunk dispatch to the nexi agent; web calls use a separate named dispatch path."
+  }
+}

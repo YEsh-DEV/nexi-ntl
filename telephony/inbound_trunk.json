@@ -1,0 +1,36 @@
+{
+  "$schema": "https://example.com/nexi/telephony/inbound-trunk/v1.schema.json",
+  "version": 1,
+  "description": "Phase 3 inbound telephony configuration template for Nexi (SRM AP University voice assistant).\nProvision this trunk with an eligible carrier (e.g. Twilio Elastic SIP). Replace placeholder values\nbefore applying; never commit real SIP credentials or phone numbers to this file.",
+  "trunk": {
+    "name": "nexi-inbound-trunk",
+    "type": "elastic-sip",
+    "provider": "twilio",
+    "region": "us1",
+    "protocol": "SIP",
+    "transport": "tls",
+    "sip_uris": [],
+    "numbers": [
+      "+910000000000"
+    ],
+    "media_options": {
+      "codecs": ["PCMU", "telephone-event"],
+      "sample_rate_hz": 8000,
+      "ptime_ms": 20
+    },
+    "cps_limit": 10,
+    "ip_access_control_lists": [],
+    "auth": {
+      "username_placeholder": "{{TWILIO_SIP_USERNAME}}",
+      "password_placeholder": "{{TWILIO_SIP_PASSWORD}}"
+    }
+  },
+  "validation": {
+    "required_before_apply": [
+      "account eligible for SIP trunking",
+      "phone number purchased and verified",
+      "regional routing confirmed",
+      "carrier rates reviewed"
+    ]
+  }
+}
