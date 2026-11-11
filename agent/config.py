@@ -38,7 +38,7 @@ class Settings:
     inference_threads: int = 1
     stt_model: str = "nova-3"
     stt_language: str = "en-US"
-    llm_model: str = "gemini-2.5-flash"
+    llm_model: str = "gemini-3.5-flash"
     tts_model: str = "bulbul:v3"
     tts_speaker: str = "kavya"
     web_sample_rate: int = 24000
