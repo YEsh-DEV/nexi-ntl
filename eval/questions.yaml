@@ -13,7 +13,7 @@
 # `abstain: true` means Nexi must return NO_RESULTS / no evidence and not hallucinate.
 #
 version: 1
-knowledge_version: d51af6ab6e564da19d510a3a4db049ee
+knowledge_version: 337ce61b42e1426896ba9cce2beaba4a
 retrieval_top_n: 4
 
 questions:
@@ -435,44 +435,93 @@ questions:
     abstain: true
 
   # ------------------------------------------------------------------
-  # UNANSWERABLE UNIVERSITY QUESTIONS (document exists but has no indexed text)
+  # ANSWERABLE (Newly extracted university policy documents)
   # ------------------------------------------------------------------
   - id: UNIV-01
-    category: unanswerable_university
+    category: answerable
     domain: internship
     question: "What are the internship rules at SRM University-AP?"
-    expected_source: null
-    key_facts: []
-    abstain: true
+    expected_source: "pdf/13.Student Internship Policy.pdf"
+    key_facts:
+      - "Student internship programme at SRM AP"
+      - "Intern shall abide by all rules and maintain discipline"
+    abstain: false
 
   - id: UNIV-02
-    category: unanswerable_university
+    category: answerable
     domain: grants
     question: "Are there seed grants for student research projects at SRM AP?"
-    expected_source: null
-    key_facts: []
-    abstain: true
+    expected_source: "pdf/31. Seed Grant Assistance Policy of SRM University - AP to Full Time UG & PG Students for Research Projects (2).pdf"
+    key_facts:
+      - "Seed grant assistance policy for full time UG & PG students"
+    abstain: false
 
   - id: UNIV-03
-    category: unanswerable_university
+    category: answerable
     domain: financial_assistance
     question: "Is there financial assistance for attending conferences and workshops?"
-    expected_source: null
-    key_facts: []
-    abstain: true
+    expected_source: "pdf/17. Financial Assistance Policy of SRM University - AP to UG and PG Students for Attending Conferences, Workshops and Competitions.pdf"
+    key_facts:
+      - "Financial assistance policy to UG and PG students for attending conferences"
+    abstain: false
 
   - id: UNIV-04
-    category: unanswerable_university
+    category: answerable
     domain: conduct
     question: "What does the student code of conduct prohibit?"
+    expected_source: "pdf/student-code-of-conduct-policy-of-SRM-university-AP-.pdf"
+    key_facts:
+      - "Code of conduct policy of SRM University-AP"
+    abstain: false
+
+  - id: UNIV-05
+    category: answerable
+    domain: ordinances
+    question: "What are the academic programme ordinances of SRM AP?"
+    expected_source: "pdf/Academic-Programmes-Ordinances.pdf"
+    key_facts:
+      - "Academic programmes ordinances"
+    abstain: false
+
+  # ------------------------------------------------------------------
+  # UNANSWERABLE UNIVERSITY QUESTIONS (programs/policies not offered or published)
+  # ------------------------------------------------------------------
+  - id: UNIV-UNPUB-01
+    category: unanswerable_university
+    domain: medical
+    question: "What is the fee structure for the MBBS medical college degree at SRM AP?"
     expected_source: null
     key_facts: []
     abstain: true
 
-  - id: UNIV-05
+  - id: UNIV-UNPUB-02
     category: unanswerable_university
-    domain: ordinances
-    question: "What are the academic programme ordinances of SRM AP?"
+    domain: hostel
+    question: "Can students keep pet dogs inside the campus hostel rooms?"
+    expected_source: null
+    key_facts: []
+    abstain: true
+
+  - id: UNIV-UNPUB-03
+    category: unanswerable_university
+    domain: travel
+    question: "What is the reimbursement policy for flight tickets taken by students during summer vacation?"
+    expected_source: null
+    key_facts: []
+    abstain: true
+
+  - id: UNIV-UNPUB-04
+    category: unanswerable_university
+    domain: sports
+    question: "What is the contact phone number for the campus Olympic swimming pool coach?"
+    expected_source: null
+    key_facts: []
+    abstain: true
+
+  - id: UNIV-UNPUB-05
+    category: unanswerable_university
+    domain: sports
+    question: "How do I book an appointment with the university equestrian club?"
     expected_source: null
     key_facts: []
     abstain: true
