@@ -39,8 +39,8 @@ class Settings:
     stt_model: str = "nova-3"
     stt_language: str = "en-US"
     llm_model: str = "gemini-2.5-flash"
-    tts_model: str = "bulbul:v2"
-    tts_speaker: str = "anushka"
+    tts_model: str = "bulbul:v3"
+    tts_speaker: str = "kavya"
     web_sample_rate: int = 24000
     phone_sample_rate: int = 8000
     noise_cancellation: bool = False
