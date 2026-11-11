@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexi — SRM AP AI Assistant (Test Console)</title>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.6.1/dist/livekit-client.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --danger: #ef4444;
+      --success: #10b981;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .container {
+      width: 100%;
+      max-width: 680px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--border);
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+    .badge.live { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+    .badge.connecting { background: rgba(59, 130, 246, 0.2); color: var(--primary); }
+    .badge.error { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+    .section {
+      margin-top: 1.5rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .lang-selector {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .lang-btn {
+      flex: 1;
+      padding: 0.6rem 0.5rem;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-btn.active {
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    .visualizer-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      width: 100%;
+      height: 60px;
+    }
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    .btn {
+      flex: 1;
+      padding: 0.8rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { background: var(--danger); color: white; display: none; }
+    .btn-secondary { background: #334155; color: var(--text); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .chip {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .chip:hover { border-color: var(--primary); color: var(--text); }
+    .log-box {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #38bdf8;
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Nexi Voice Assistant</h1>
+      <div class="subtitle">SRM University-AP Official Voice AI &middot; API Test Console</div>
+      <div id="statusBadge" class="badge">Disconnected</div>
+    </header>
+
+    <div class="section">
+      <label>1. Select Language</label>
+      <div class="lang-selector">
+        <button class="lang-btn active" data-lang="en">English</button>
+        <button class="lang-btn" data-lang="te">&#3108;&#3142;&#3122;&#3137;&#3095;&#3137; (Telugu)</button>
+        <button class="lang-btn" data-lang="hi">&#2361;&#2367;&#2344;&#2367;&#2381;&#2342;&#2368; (Hindi)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <label>2. Audio Activity</label>
+      <div class="visualizer-card">
+        <canvas id="visualizer"></canvas>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn" class="btn btn-primary">Start Call</button>
+      <button id="endBtn" class="btn btn-danger">End Call</button>
+      <button id="muteBtn" class="btn btn-secondary" style="display:none;">Mute Mic</button>
+    </div>
+
+    <div class="section">
+      <label>Suggested Test Questions</label>
+      <div class="chips">
+        <div class="chip">What is the hostel undertaking requirement?</div>
+        <div class="chip">Can attendance shortfall be condoned up to 40%?</div>
+        <div class="chip">When does the semester commence in August 2025?</div>
+        <div class="chip">What are the student internship rules?</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <label>Connection &amp; Event Logs</label>
+      <div id="logBox" class="log-box">[System] Ready to connect. Click 'Start Call' to request a token and dispatch Nexi.</div>
+    </div>
+  </div>
+
+  <audio id="agentAudio" autoplay></audio>
+
+  <script>
+    let currentLang = "en";
+    let activeRoom = null;
+    let audioContext = null;
+    let analyser = null;
+    let animFrame = null;
+    let isMuted = false;
+
+    const logBox = document.getElementById("logBox");
+    const statusBadge = document.getElementById("statusBadge");
+    const startBtn = document.getElementById("startBtn");
+    const endBtn = document.getElementById("endBtn");
+    const muteBtn = document.getElementById("muteBtn");
+    const agentAudio = document.getElementById("agentAudio");
+    const canvas = document.getElementById("visualizer");
+    const ctx = canvas.getContext("2d");
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logBox.textContent += `\n[${time}] ${msg}`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function setStatus(text, type) {
+      statusBadge.textContent = text;
+      statusBadge.className = `badge ${type || ""}`;
+    }
+
+    // Language selection
+    document.querySelectorAll(".lang-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (activeRoom) {
+          log("Notice: Cannot change language during an active call.");
+          return;
+        }
+        document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentLang = btn.getAttribute("data-lang");
+        log(`Language switched to: ${currentLang}`);
+      });
+    });
+
+    // Audio Visualizer
+    function setupVisualizer(stream) {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        animFrame = requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / bufferLength) * 1.5;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = (dataArray[i] / 255) * canvas.height;
+          ctx.fillStyle = "#3b82f6";
+          ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+          x += barWidth;
+        }
+      }
+      draw();
+    }
+
+    function stopVisualizer() {
+      if (animFrame) cancelAnimationFrame(animFrame);
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Start Call
+    startBtn.addEventListener("click", async () => {
+      try {
+        startBtn.disabled = true;
+        setStatus("Requesting token...", "connecting");
+        log("Requesting ephemeral token from /api/token...");
+
+        const tokenRes = await fetch("/api/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channel: "web", language: currentLang })
+        });
+
+        if (!tokenRes.ok) {
+          throw new Error(`Token API failed with status ${tokenRes.status}`);
+        }
+        const data = await tokenRes.json();
+        log(`Token acquired for room: ${data.room}`);
+        setStatus("Connecting to LiveKit...", "connecting");
+
+        activeRoom = new LivekitClient.Room({
+          adaptiveStream: true,
+          dynacast: true,
+        });
+
+        activeRoom.on(LivekitClient.RoomEvent.ParticipantConnected, (p) => {
+          log(`Agent joined: ${p.identity}`);
+        });
+
+        activeRoom.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          if (track.kind === LivekitClient.Track.Kind.Audio) {
+            log(`Receiving audio from ${participant.identity}`);
+            track.attach(agentAudio);
+          }
+        });
+
+        activeRoom.on(LivekitClient.RoomEvent.Disconnected, () => {
+          log("Room disconnected.");
+          cleanupUI();
+        });
+
+        await activeRoom.connect(data.url, data.token);
+        log("Connected to LiveKit room. Enabling microphone...");
+        setStatus("Connected & Live", "live");
+
+        await activeRoom.localParticipant.setMicrophoneEnabled(true);
+        const micTrack = activeRoom.localParticipant.getTrackPublication(LivekitClient.Track.Source.Microphone);
+        if (micTrack && micTrack.track) {
+          const stream = new MediaStream([micTrack.track.mediaStreamTrack]);
+          setupVisualizer(stream);
+        }
+
+        startBtn.style.display = "none";
+        endBtn.style.display = "block";
+        muteBtn.style.display = "block";
+        log("Microphone live. Nexi should speak the initial greeting now.");
+
+      } catch (err) {
+        log(`Error: ${err.message}`);
+        setStatus("Failed", "error");
+        cleanupUI();
+      } finally {
+        startBtn.disabled = false;
+      }
+    });
+
+    // End Call
+    endBtn.addEventListener("click", async () => {
+      if (activeRoom) {
+        log("Ending call...");
+        await activeRoom.disconnect();
+      }
+      cleanupUI();
+    });
+
+    // Mute/Unmute
+    muteBtn.addEventListener("click", async () => {
+      if (!activeRoom) return;
+      isMuted = !isMuted;
+      await activeRoom.localParticipant.setMicrophoneEnabled(!isMuted);
+      muteBtn.textContent = isMuted ? "Unmute Mic" : "Mute Mic";
+      muteBtn.style.background = isMuted ? "#ef4444" : "#334155";
+      log(isMuted ? "Microphone muted" : "Microphone unmuted");
+    });
+
+    function cleanupUI() {
+      setStatus("Disconnected");
+      startBtn.style.display = "block";
+      endBtn.style.display = "none";
+      muteBtn.style.display = "none";
+      isMuted = false;
+      muteBtn.textContent = "Mute Mic";
+      muteBtn.style.background = "#334155";
+      stopVisualizer();
+      activeRoom = null;
+    }
+
+    // Set canvas resolution
+    canvas.width = canvas.offsetWidth || 560;
+    canvas.height = canvas.offsetHeight || 60;
+  </script>
+</body>
+</html>
