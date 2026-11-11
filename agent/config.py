@@ -41,6 +41,9 @@ class Settings:
     llm_model: str = "gemini-3.5-flash"
     tts_model: str = "bulbul:v3"
     tts_speaker: str = "kavya"
+    default_language: str = "en"
+    idle_silence_timeout: float = 8.0
+    idle_silence_grace: float = 8.0
     web_sample_rate: int = 24000
     phone_sample_rate: int = 8000
     noise_cancellation: bool = False
@@ -131,6 +134,8 @@ def load_settings() -> Settings:
         "participant_timeout",
         "speech_timeout",
         "shutdown_timeout",
+        "idle_silence_timeout",
+        "idle_silence_grace",
     ):
         if getattr(settings, name) <= 0:
             raise ConfigurationError(f"{name.upper()} must be positive")
@@ -158,4 +163,6 @@ def load_settings() -> Settings:
     for rate in (settings.web_sample_rate, settings.phone_sample_rate):
         if rate not in {8000, 16000, 22050, 24000}:
             raise ConfigurationError("TTS sample rate must be 8000, 16000, 22050, or 24000")
+    if settings.default_language not in {"en", "te", "hi"}:
+        raise ConfigurationError("DEFAULT_LANGUAGE must be en, te, or hi")
     return settings

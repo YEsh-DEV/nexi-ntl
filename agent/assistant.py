@@ -1,5 +1,7 @@
 """One agent and one knowledge tool; LiveKit owns the conversation loop."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from dataclasses import dataclass, field
@@ -9,7 +11,7 @@ from uuid import uuid4
 from livekit.agents import Agent, RunContext, ToolError, function_tool
 
 from agent.config import Settings
-from agent.prompts import Channel, build_prompt
+from agent.prompts import Channel, Language, build_prompt
 from agent.telemetry import event
 from rag.retriever import RetrievalBusy, Retriever
 
@@ -17,6 +19,7 @@ from rag.retriever import RetrievalBusy, Retriever
 @dataclass
 class CallState:
     channel: Channel
+    language: Language = "en"
     call_id: str = field(default_factory=lambda: uuid4().hex)
     started_at: float = field(default_factory=monotonic)
     turns: int = 0
@@ -27,10 +30,17 @@ class CallState:
 
 
 class NexiAgent(Agent):
-    def __init__(self, retriever: Retriever, settings: Settings, channel: Channel) -> None:
-        super().__init__(instructions=build_prompt(channel, settings.timezone))
+    def __init__(
+        self,
+        retriever: Retriever,
+        settings: Settings,
+        channel: Channel,
+        language: Language = "en",
+    ) -> None:
+        super().__init__(instructions=build_prompt(channel, settings.timezone, language=language))
         self._retriever = retriever
         self._settings = settings
+        self._language = language
 
     @function_tool
     async def search_university_info(self, context: RunContext[CallState], query: str) -> str:
@@ -41,7 +51,7 @@ class NexiAgent(Agent):
         """
         query = query.strip()
         if not query or len(query) > self._settings.query_max_chars:
-            raise ToolError("Ask a short, clear university question.")
+            raise ToolError("Ask the student to repeat the question.")
         state = context.userdata
         state.tool_calls += 1
         start = monotonic()
@@ -78,7 +88,7 @@ class NexiAgent(Agent):
                 "retrieval",
                 call_id=state.call_id,
                 channel=state.channel,
-                language="en",
+                language=state.language,
                 outcome=outcome,
                 duration=round(monotonic() - start, 3),
                 knowledge_version=self._retriever.knowledge_version,

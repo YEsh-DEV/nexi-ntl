@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import math
+import re
 import sys
 from dataclasses import asdict
 from time import monotonic
@@ -26,13 +27,20 @@ from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from agent.assistant import CallState, NexiAgent
 from agent.config import ConfigurationError, load_settings
-from agent.prompts import GREETINGS, PROMPT_VERSION, Channel
+from agent.prompts import (
+    FAREWELLS,
+    GREETINGS,
+    IDLE_PROMPTS,
+    PROMPT_VERSION,
+    Channel,
+    Language,
+)
 from agent.telemetry import configure_logging, event
 from rag.retriever import Retriever
 
 
-def read_channel(metadata: str) -> Channel:
-    """Dispatch is validated; actual participant type determines the room profile."""
+def read_channel(metadata: str) -> tuple[Channel, Language]:
+    """Parse dispatch metadata for channel and language."""
     if len(metadata) > 4096:
         raise ValueError("Job metadata is too large")
     try:
@@ -41,10 +49,21 @@ def read_channel(metadata: str) -> Channel:
         raise ValueError("Job metadata must be a JSON object") from None
     if not isinstance(payload, dict):
         raise ValueError("Job metadata must be a JSON object")
-    channel = payload.get("channel", "web")
-    if channel not in ("web", "phone") or payload.get("language", "en") != "en":
-        raise ValueError("Phase 1 supports web/phone profiles in English only")
-    return channel
+    channel: Channel = payload.get("channel", "web")
+    if channel not in ("web", "phone"):
+        channel = "web"
+    language: Language = payload.get("language", "en")
+    if language not in ("en", "te", "hi"):
+        language = "en"
+    return channel, language
+
+
+def mask_phone_number(raw: str) -> str:
+    """Mask phone numbers to prevent storing or logging PII."""
+    digits = re.sub(r"[^\d+]", "", raw)
+    if len(digits) > 6:
+        return digits[:3] + "****" + digits[-4:]
+    return "***"
 
 
 def prewarm(proc: JobProcess) -> None:
@@ -65,13 +84,17 @@ async def entrypoint(ctx: JobContext) -> None:
     retriever = ctx.proc.userdata["retriever"]
     vad = ctx.proc.userdata["vad"]
     console = bool(cli_state.CLI_ARGUMENTS and cli_state.CLI_ARGUMENTS.console)
-    state = CallState(channel="web")
+
+    requested_channel, requested_language = read_channel(ctx.job.metadata or "")
+    state = CallState(channel=requested_channel, language=requested_language)
     usage = metrics.UsageCollector()
     session = None
     providers = []
     tasks: set[asyncio.Task] = set()
     closed = False
     fatal_reported = False
+    last_activity = monotonic()
+    idle_prompted = False
 
     async def cleanup(reason: str = "startup_failed") -> None:
         nonlocal closed
@@ -111,7 +134,7 @@ async def entrypoint(ctx: JobContext) -> None:
                 "call_summary",
                 call_id=state.call_id,
                 channel=state.channel,
-                language="en",
+                language=state.language,
                 status="error" if state.errors else "closed",
                 turns=state.turns,
                 tool_calls=state.tool_calls,
@@ -127,7 +150,6 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(cleanup)
     try:
         settings.validate_runtime(console=console)
-        requested_channel = read_channel(ctx.job.metadata or "")
         room_options = RoomInputOptions()
         if not console:
             await asyncio.wait_for(ctx.connect(), settings.participant_timeout)
@@ -138,6 +160,14 @@ async def entrypoint(ctx: JobContext) -> None:
             state.channel = (
                 "phone" if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP else "web"
             )
+            if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP:
+                phone_num = participant.attributes.get("sip.phoneNumber", "")
+                if phone_num:
+                    event(
+                        "sip_caller_connected",
+                        call_id=state.call_id,
+                        caller=mask_phone_number(phone_num),
+                    )
             if requested_channel != state.channel:
                 event("channel_metadata_mismatch", call_id=state.call_id, channel=state.channel)
             room_options.participant_identity = participant.identity
@@ -163,8 +193,14 @@ async def entrypoint(ctx: JobContext) -> None:
             temperature=0.2,
         )
         providers.append(llm)
+
+        target_lang = (
+            "te-IN"
+            if state.language == "te"
+            else ("hi-IN" if state.language == "hi" else "en-IN")
+        )
         tts = sarvam.TTS(
-            target_language_code="en-IN",
+            target_language_code=target_lang,
             model=settings.tts_model,
             speaker=settings.tts_speaker,
             api_key=settings.sarvam_api_key,
@@ -199,13 +235,16 @@ async def entrypoint(ctx: JobContext) -> None:
                 "stage_metrics",
                 call_id=state.call_id,
                 channel=state.channel,
-                language="en",
+                language=state.language,
                 stage=ev.metrics.type,
                 **measurements,
             )
 
         @session.on("user_input_transcribed")
         def on_transcript(ev):
+            nonlocal last_activity, idle_prompted
+            last_activity = monotonic()
+            idle_prompted = False
             if ev.is_final:
                 state.turns += 1  # Observe only: never generate a reply here.
 
@@ -245,20 +284,66 @@ async def entrypoint(ctx: JobContext) -> None:
             if not closed:
                 ctx.shutdown(reason="session_closed")
 
+        async def monitor_inactivity() -> None:
+            nonlocal last_activity, idle_prompted
+            while not closed:
+                await asyncio.sleep(2.0)
+                if closed:
+                    break
+                elapsed = monotonic() - last_activity
+                if not idle_prompted and elapsed >= settings.idle_silence_timeout:
+                    idle_prompted = True
+                    event(
+                        "idle_prompt_triggered",
+                        call_id=state.call_id,
+                        elapsed=round(elapsed, 1),
+                    )
+                    try:
+                        await asyncio.wait_for(
+                            session.say(IDLE_PROMPTS[state.language]),
+                            settings.speech_timeout,
+                        )
+                    except Exception:
+                        pass
+                elif idle_prompted and elapsed >= (
+                    settings.idle_silence_timeout + settings.idle_silence_grace
+                ):
+                    event(
+                        "idle_timeout_closing",
+                        call_id=state.call_id,
+                        elapsed=round(elapsed, 1),
+                    )
+                    try:
+                        await asyncio.wait_for(
+                            session.say(FAREWELLS[state.language]),
+                            settings.speech_timeout,
+                        )
+                    except Exception:
+                        pass
+                    ctx.shutdown(reason="idle_timeout")
+                    break
+
+        inactivity_task = asyncio.create_task(monitor_inactivity())
+        tasks.add(inactivity_task)
+        inactivity_task.add_done_callback(tasks.discard)
+
         await session.start(
             room=ctx.room,
-            agent=NexiAgent(retriever, settings, state.channel),
+            agent=NexiAgent(retriever, settings, state.channel, language=state.language),
             room_input_options=room_options,
         )
         event(
             "call_ready",
             call_id=state.call_id,
             channel=state.channel,
-            language="en",
+            language=state.language,
             knowledge_version=retriever.knowledge_version,
         )
         try:
-            await asyncio.wait_for(session.say(GREETINGS[state.channel]), settings.speech_timeout)
+            await asyncio.wait_for(
+                session.say(GREETINGS[state.language][state.channel]),
+                settings.speech_timeout,
+            )
         except TimeoutError:
             state.timeouts += 1
             session.interrupt()
