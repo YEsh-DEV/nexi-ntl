@@ -25,11 +25,11 @@
     "adversarial_abstain_rate_percent": 100.0,
     "adversarial_abstains": 5,
     "adversarial_total": 5,
-    "p50_latency_ms": 631.07,
-    "p95_latency_ms": 1020.44,
-    "min_latency_ms": 474.05,
-    "max_latency_ms": 1146.66,
-    "mean_latency_ms": 681.03
+    "p50_latency_ms": 845.28,
+    "p95_latency_ms": 1398.88,
+    "min_latency_ms": 628.26,
+    "max_latency_ms": 1453.81,
+    "mean_latency_ms": 924.77
   },
   "details": [
     {
@@ -45,7 +45,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 521.68
+      "latency_ms": 857.89
     },
     {
       "id": "HOSTEL-02",
@@ -61,7 +61,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 544.56
+      "latency_ms": 653.36
     },
     {
       "id": "HOSTEL-03",
@@ -75,7 +75,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 519.51
+      "latency_ms": 698.29
     },
     {
       "id": "HOSTEL-04",
@@ -89,7 +89,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 541.41
+      "latency_ms": 689.51
     },
     {
       "id": "HOSTEL-05",
@@ -102,7 +102,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 519.92
+      "latency_ms": 673.71
     },
     {
       "id": "HOSTEL-06",
@@ -115,7 +115,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 538.96
+      "latency_ms": 678.04
     },
     {
       "id": "HOSTEL-07",
@@ -131,7 +131,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 532.31
+      "latency_ms": 693.4
     },
     {
       "id": "HOSTEL-08",
@@ -145,7 +145,7 @@
         "pdf/Hostel-Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 504.27
+      "latency_ms": 647.38
     },
     {
       "id": "ATT-01",
@@ -159,7 +159,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 652.3
+      "latency_ms": 829.2
     },
     {
       "id": "ATT-02",
@@ -173,7 +173,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 688.71
+      "latency_ms": 894.01
     },
     {
       "id": "ATT-03",
@@ -187,7 +187,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 532.89
+      "latency_ms": 743.29
     },
     {
       "id": "ATT-04",
@@ -201,7 +201,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 817.05
+      "latency_ms": 1117.92
     },
     {
       "id": "ATT-05",
@@ -215,7 +215,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 531.98
+      "latency_ms": 859.35
     },
     {
       "id": "ATT-06",
@@ -229,7 +229,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 537.78
+      "latency_ms": 732.83
     },
     {
       "id": "ATT-07",
@@ -243,7 +243,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 622.87
+      "latency_ms": 838.43
     },
     {
       "id": "CAL-01",
@@ -259,7 +259,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 640.62
+      "latency_ms": 953.39
     },
     {
       "id": "CAL-02",
@@ -272,7 +272,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 628.5
+      "latency_ms": 827.48
     },
     {
       "id": "CAL-03",
@@ -287,7 +287,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 581.3
+      "latency_ms": 771.88
     },
     {
       "id": "CAL-04",
@@ -301,7 +301,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 768.14
+      "latency_ms": 1005.43
     },
     {
       "id": "CAL-05",
@@ -317,7 +317,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 696.4
+      "latency_ms": 942.4
     },
     {
       "id": "CAL-06",
@@ -333,7 +333,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 633.64
+      "latency_ms": 728.45
     },
     {
       "id": "CAL-07",
@@ -349,7 +349,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 584.98
+      "latency_ms": 783.68
     },
     {
       "id": "CAL-08",
@@ -364,7 +364,7 @@
         "pdf/Academic Calendar AY 2025-26.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 636.63
+      "latency_ms": 844.32
     },
     {
       "id": "EXAM-01",
@@ -380,7 +380,7 @@
         "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 616.53
+      "latency_ms": 822.66
     },
     {
       "id": "EXAM-02",
@@ -396,7 +396,7 @@
         "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 636.73
+      "latency_ms": 831.82
     },
     {
       "id": "EXAM-03",
@@ -409,7 +409,7 @@
         "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 634.69
+      "latency_ms": 841.84
     },
     {
       "id": "EXAM-04",
@@ -422,7 +422,7 @@
         "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 643.87
+      "latency_ms": 765.85
     },
     {
       "id": "EXAM-05",
@@ -435,7 +435,7 @@
         "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 625.83
+      "latency_ms": 848.32
     },
     {
       "id": "EXAM-06",
@@ -449,7 +449,7 @@
         "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 593.1
+      "latency_ms": 766.14
     },
     {
       "id": "EXAM-07",
@@ -463,7 +463,7 @@
         "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 654.31
+      "latency_ms": 859.71
     },
     {
       "id": "OOD-01",
@@ -474,7 +474,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 671.65
+      "latency_ms": 900.52
     },
     {
       "id": "OOD-02",
@@ -485,7 +485,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 623.65
+      "latency_ms": 841.44
     },
     {
       "id": "OOD-03",
@@ -496,7 +496,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 593.41
+      "latency_ms": 1116.85
     },
     {
       "id": "OOD-04",
@@ -507,7 +507,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 678.53
+      "latency_ms": 873.74
     },
     {
       "id": "OOD-05",
@@ -518,7 +518,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 615.9
+      "latency_ms": 846.23
     },
     {
       "id": "OOD-06",
@@ -529,7 +529,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 738.36
+      "latency_ms": 991.48
     },
     {
       "id": "OOD-07",
@@ -540,7 +540,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 918.42
+      "latency_ms": 1224.1
     },
     {
       "id": "OOD-08",
@@ -551,7 +551,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 1146.66
+      "latency_ms": 1453.81
     },
     {
       "id": "OOD-09",
@@ -562,7 +562,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 923.27
+      "latency_ms": 1362.85
     },
     {
       "id": "OOD-10",
@@ -573,7 +573,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 604.89
+      "latency_ms": 801.7
     },
     {
       "id": "UNIV-01",
@@ -589,7 +589,7 @@
         "pdf/Student's Attendance Policy.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 1019.41
+      "latency_ms": 1386.57
     },
     {
       "id": "UNIV-02",
@@ -600,7 +600,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 474.05
+      "latency_ms": 628.26
     },
     {
       "id": "UNIV-03",
@@ -611,7 +611,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 542.67
+      "latency_ms": 717.57
     },
     {
       "id": "UNIV-04",
@@ -625,7 +625,7 @@
         "pdf/student_handbook.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 1014.43
+      "latency_ms": 1370.14
     },
     {
       "id": "UNIV-05",
@@ -641,7 +641,7 @@
         "pdf/student_handbook.pdf"
       ],
       "returned_results": true,
-      "latency_ms": 497.24
+      "latency_ms": 1411.02
     },
     {
       "id": "ADV-01",
@@ -652,7 +652,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 903.59
+      "latency_ms": 1042.46
     },
     {
       "id": "ADV-02",
@@ -663,7 +663,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 1026.89
+      "latency_ms": 1395.59
     },
     {
       "id": "ADV-03",
@@ -674,7 +674,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 1014.1
+      "latency_ms": 1367.8
     },
     {
       "id": "ADV-04",
@@ -685,7 +685,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 841.39
+      "latency_ms": 904.62
     },
     {
       "id": "ADV-05",
@@ -696,7 +696,7 @@
       "expected_page": null,
       "retrieved_sources": [],
       "returned_results": false,
-      "latency_ms": 1021.28
+      "latency_ms": 1401.57
     }
   ]
 }

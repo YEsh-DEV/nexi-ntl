@@ -1,14 +1,62 @@
-"""Phase 1 dense retrieval with provisional rejection; hybrid evaluation is Phase 2."""
+"""Phase 2 hybrid retrieval (dense + BM25 with RRF) and cross-encoder reranking."""
 
 from __future__ import annotations
 
 import asyncio
 import math
+import re
+from collections import Counter
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 
 from agent.config import Settings
 from rag.manifest import COLLECTION, read_active
+
+
+class BM25Index:
+    """Zero-dependency Okapi BM25 implementation (k1=1.5, b=0.75) using Python stdlib."""
+
+    def __init__(self, corpus: list[str], k1: float = 1.5, b: float = 0.75) -> None:
+        self.k1 = k1
+        self.b = b
+        self.n = len(corpus)
+        self.doc_counts = [Counter(re.findall(r"\w+", doc.lower())) for doc in corpus]
+        self.doc_lens = [sum(counts.values()) for counts in self.doc_counts]
+        self.avgdl = sum(self.doc_lens) / (self.n or 1)
+        df: dict[str, int] = Counter()
+        for counts in self.doc_counts:
+            for term in counts:
+                df[term] += 1
+        self.idf = {
+            term: math.log((self.n - freq + 0.5) / (freq + 0.5) + 1.0)
+            for term, freq in df.items()
+        }
+
+    def top_k(self, query: str, k: int = 12) -> list[int]:
+        q_terms = [t for t in re.findall(r"\w+", query.lower()) if t in self.idf]
+        if not q_terms:
+            return []
+        scores = [0.0] * self.n
+        for term in q_terms:
+            idf = self.idf[term]
+            for i, counts in enumerate(self.doc_counts):
+                tf = counts[term]
+                if tf:
+                    denom = tf + self.k1 * (1 - self.b + self.b * (self.doc_lens[i] / self.avgdl))
+                    scores[i] += idf * (tf * (self.k1 + 1)) / denom
+        indexed = [(score, i) for i, score in enumerate(scores) if score > 0]
+        indexed.sort(key=lambda item: (-item[0], item[1]))
+        return [i for _, i in indexed[:k]]
+
+
+def rrf(dense_ids: list[str], bm25_ids: list[str], k: int = 60) -> list[str]:
+    """Reciprocal Rank Fusion with rank bias k=60."""
+    scores: dict[str, float] = {}
+    for rank, cid in enumerate(dense_ids, start=1):
+        scores[cid] = scores.get(cid, 0.0) + 1.0 / (k + rank)
+    for rank, cid in enumerate(bm25_ids, start=1):
+        scores[cid] = scores.get(cid, 0.0) + 1.0 / (k + rank)
+    return sorted(scores, key=lambda cid: scores[cid], reverse=True)
 
 
 @dataclass(frozen=True)
@@ -53,6 +101,17 @@ class Retriever:
         self._count = self._collection.count()
         if self._count != manifest["chunks"]:
             raise RuntimeError("Knowledge count differs from its manifest; rebuild offline")
+
+        # In-memory corpus and lookup cache for hybrid BM25 and fast candidate resolution
+        raw = self._collection.get(include=["documents", "metadatas"])
+        self._all_ids: list[str] = raw["ids"]
+        self._all_docs: list[str] = raw["documents"]
+        self._lookup: dict[str, tuple[str, dict]] = {
+            cid: (doc, meta or {})
+            for cid, doc, meta in zip(raw["ids"], raw["documents"], raw["metadatas"], strict=True)
+        }
+        self._bm25 = BM25Index(self._all_docs)
+
         # Download using the offline bootstrap first. Calls never fetch model weights.
         self._embeddings = SentenceTransformer(
             settings.embed_model,
@@ -72,23 +131,30 @@ class Retriever:
         self._closed = False
 
     def _search_sync(self, query: str) -> SearchResult:
+        # 1. Dense retrieval
         vector = self._embeddings.encode(query, normalize_embeddings=True).tolist()
         found = self._collection.query(
             query_embeddings=[vector],
             n_results=min(self.settings.retrieval_k, self._count),
             include=["documents", "metadatas"],
         )
-        ids = found["ids"][0]
-        documents = (found["documents"] or [[]])[0]
-        metadata = (found["metadatas"] or [[]])[0]
+        dense_ids = found["ids"][0] if found["ids"] else []
+
+        # 2. BM25 keyword retrieval
+        bm25_indices = self._bm25.top_k(query, k=self.settings.retrieval_k)
+        bm25_ids = [self._all_ids[idx] for idx in bm25_indices]
+
+        # 3. Reciprocal Rank Fusion (top 16)
+        merged_ids = rrf(dense_ids, bm25_ids, k=60)[:16]
         candidates = [
-            (chunk_id, text, meta or {})
-            for chunk_id, text, meta in zip(ids, documents, metadata, strict=True)
-            if text and text.strip()
+            (cid, self._lookup[cid][0], self._lookup[cid][1])
+            for cid in merged_ids
+            if cid in self._lookup and self._lookup[cid][0].strip()
         ]
         if not candidates:
             return SearchResult((), self.knowledge_version)
-        # Rerank even a single candidate; do not bypass acceptance after a provider/model error.
+
+        # 4. Cross-encoder reranking
         scores = self._reranker.predict([(query, row[1]) for row in candidates])
         accepted = []
         for row, score in zip(candidates, scores, strict=True):
@@ -96,6 +162,8 @@ class Retriever:
             if math.isfinite(score) and score >= self.settings.rerank_min_score:
                 accepted.append((row, score))
         accepted.sort(key=lambda item: (-item[1], item[0][0]))
+
+        # 5. Pack evidence chunks within context_max_chars budget
         evidence = []
         used = 0
         for (chunk_id, text, meta), score in accepted:
