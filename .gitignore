@@ -45,3 +45,10 @@ data/telemetry/
 *.sqlite3-*
 *.db-wal
 *.db-shm
+
+# Internal documentation and implementation playbooks (kept local only)
+Nexi — Implementation Playbook.md
+SYSTEM_ARCHITECTURE.md
+docs/
+KMS/
+session_data/
