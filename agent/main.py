@@ -35,6 +35,7 @@ from agent.prompts import (
     Channel,
     Language,
 )
+from agent.storage import TelemetryStore
 from agent.telemetry import configure_logging, event
 from rag.retriever import Retriever
 
@@ -71,7 +72,12 @@ def prewarm(proc: JobProcess) -> None:
     configure_logging(settings.log_level)
     retriever = Retriever(settings)
     try:
-        proc.userdata.update(settings=settings, retriever=retriever, vad=silero.VAD.load())
+        proc.userdata.update(
+            settings=settings,
+            retriever=retriever,
+            vad=silero.VAD.load(),
+            storage=TelemetryStore(settings),
+        )
     except BaseException:
         retriever.close()
         raise
@@ -83,6 +89,7 @@ async def entrypoint(ctx: JobContext) -> None:
     configure_logging(settings.log_level)
     retriever = ctx.proc.userdata["retriever"]
     vad = ctx.proc.userdata["vad"]
+    storage: TelemetryStore | None = ctx.proc.userdata.get("storage")
     console = bool(cli_state.CLI_ARGUMENTS and cli_state.CLI_ARGUMENTS.console)
 
     requested_channel, requested_language = read_channel(ctx.job.metadata or "")
@@ -129,6 +136,26 @@ async def entrypoint(ctx: JobContext) -> None:
             )
         finally:
             retriever.close()
+            if storage is not None:
+                try:
+                    storage.record_call_sync(
+                        call_id=state.call_id,
+                        started_at=state.started_at,
+                        duration=round(monotonic() - state.started_at, 3),
+                        channel=state.channel,
+                        language=state.language,
+                        status="error" if state.errors else "closed",
+                        turns=state.turns,
+                        tool_calls=state.tool_calls,
+                        no_results=state.no_results,
+                        errors=state.errors,
+                        timeouts=state.timeouts,
+                        knowledge_version=retriever.knowledge_version,
+                        prompt_version=PROMPT_VERSION,
+                        usage=asdict(usage.get_summary()),
+                    )
+                except Exception:
+                    pass
             # The framework's reason may contain external content: log our own status only.
             event(
                 "call_summary",
@@ -231,6 +258,17 @@ async def entrypoint(ctx: JobContext) -> None:
                 and key != "timestamp"
                 and math.isfinite(value)
             }
+            if storage is not None:
+                try:
+                    storage.record_stage_metrics_sync(
+                        call_id=state.call_id,
+                        channel=state.channel,
+                        language=state.language,
+                        stage=ev.metrics.type,
+                        measurements=measurements,
+                    )
+                except Exception:
+                    pass
             event(
                 "stage_metrics",
                 call_id=state.call_id,
