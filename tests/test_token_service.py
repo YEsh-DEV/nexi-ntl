@@ -1,10 +1,16 @@
 """Unit tests for token generation service and health endpoints."""
 
+import json
 import unittest
 from datetime import datetime, timezone
 
+import jwt
+
 from agent.config import Settings
-from agent.token_service import check_health, generate_token
+from agent.token_service import (
+    check_health,
+    generate_token,
+)
 
 
 class TokenServiceTests(unittest.TestCase):
@@ -28,10 +34,42 @@ class TokenServiceTests(unittest.TestCase):
         expires_dt = datetime.fromisoformat(str(res["expires_at"]))
         self.assertGreater(expires_dt, datetime.now(timezone.utc))
 
+        # Decode JWT without verification to verify claims and restrictions
+        decoded = jwt.decode(str(res["token"]), options={"verify_signature": False})
+        self.assertEqual(decoded["sub"], res["identity"])
+        self.assertEqual(decoded["video"]["room"], res["room"])
+        self.assertTrue(decoded["video"]["roomJoin"])
+        self.assertTrue(decoded["video"]["canPublish"])
+        self.assertTrue(decoded["video"]["canSubscribe"])
+        # Published sources must be restricted to MICROPHONE (value 2)
+        self.assertEqual(decoded["video"]["canPublishSources"], [2])
+        # Room agent dispatch must target nexi
+        agents = decoded["roomConfig"]["agents"]
+        self.assertEqual(len(agents), 1)
+        self.assertEqual(agents[0]["agentName"], "nexi")
+        self.assertEqual(
+            json.loads(agents[0]["metadata"]),
+            {"channel": "web", "language": "en"},
+        )
+
     def test_multilingual_tokens(self):
         for lang in ("te", "hi"):
             res = generate_token(self.settings, channel="web", language=lang)
             self.assertEqual(res["language"], lang)
+            decoded = jwt.decode(str(res["token"]), options={"verify_signature": False})
+            agents = decoded["roomConfig"]["agents"]
+            meta = json.loads(agents[0]["metadata"])
+            self.assertEqual(meta["language"], lang)
+
+    def test_missing_credentials_fails(self):
+        empty_settings = Settings(
+            livekit_url="",
+            livekit_api_key="",
+            livekit_api_secret="",
+            agent_name="nexi",
+        )
+        with self.assertRaises(ValueError):
+            generate_token(empty_settings, channel="web", language="en")
 
     def test_token_generation_parameter_validation(self):
         with self.assertRaises(ValueError):
@@ -45,6 +83,7 @@ class TokenServiceTests(unittest.TestCase):
         self.assertEqual(health["chunks"], 817)
         self.assertTrue(len(str(health["knowledge_version"])) > 10)
         self.assertTrue(health["livekit_configured"])
+        self.assertEqual(health["agent_name"], "nexi")
 
     def test_web_index_file_exists(self):
         from agent.token_service import ROOT
