@@ -49,6 +49,7 @@ data/telemetry/
 # Internal documentation and implementation playbooks (kept local only)
 Nexi — Implementation Playbook.md
 SYSTEM_ARCHITECTURE.md
+BACKEND_REVIEW.md
 docs/
 KMS/
 session_data/
