@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Generator
 
 from agent.config import Settings
 
@@ -19,15 +21,20 @@ class TelemetryStore:
         self.db_path = self.db_dir / DB_FILENAME
         self._init_db()
 
-    def _get_connection(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connection(self) -> Generator[sqlite3.Connection, None, None]:
         conn = sqlite3.connect(str(self.db_path), timeout=5.0)
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA synchronous = NORMAL;")
         conn.execute("PRAGMA busy_timeout = 5000;")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
-        with self._get_connection() as conn:
+        with self._connection() as conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS call_logs (
@@ -85,8 +92,17 @@ class TelemetryStore:
         prompt_version: str,
         usage: dict,
     ) -> None:
-        now_iso = datetime.now(timezone.utc).isoformat()
-        with self._get_connection() as conn:
+        now_dt = datetime.now(timezone.utc)
+        now_iso = now_dt.isoformat()
+        # Defensive check against raw monotonic timestamps
+        if started_at < 1_000_000_000:
+            start_dt = datetime.fromtimestamp(
+                now_dt.timestamp() - max(0.0, float(duration)), tz=timezone.utc
+            )
+        else:
+            start_dt = datetime.fromtimestamp(started_at, tz=timezone.utc)
+
+        with self._connection() as conn:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO call_logs (
@@ -97,7 +113,7 @@ class TelemetryStore:
                 """,
                 (
                     call_id,
-                    datetime.fromtimestamp(started_at, tz=timezone.utc).isoformat(),
+                    start_dt.isoformat(),
                     now_iso,
                     channel,
                     language,
@@ -126,7 +142,7 @@ class TelemetryStore:
         measurements: dict,
     ) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
-        with self._get_connection() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 INSERT INTO stage_metrics (
@@ -146,10 +162,38 @@ class TelemetryStore:
     async def record_stage_metrics(self, **kwargs: object) -> None:
         await asyncio.to_thread(self.record_stage_metrics_sync, **kwargs)
 
+    def record_knowledge_gap_sync(
+        self,
+        call_id: str,
+        language: str,
+        knowledge_version: str,
+    ) -> None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with self._connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO knowledge_gaps (
+                    call_id, language, knowledge_version, recorded_at
+                ) VALUES (?, ?, ?, ?);
+                """,
+                (call_id, language, knowledge_version, now_iso),
+            )
+
+    async def record_knowledge_gap(self, **kwargs: object) -> None:
+        await asyncio.to_thread(self.record_knowledge_gap_sync, **kwargs)
+
     def query_recent_calls(self, limit: int = 20) -> list[dict]:
-        with self._get_connection() as conn:
+        with self._connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(
                 "SELECT * FROM call_logs ORDER BY ended_at DESC LIMIT ?", (limit,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def query_knowledge_gaps(self, limit: int = 20) -> list[dict]:
+        with self._connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM knowledge_gaps ORDER BY recorded_at DESC LIMIT ?", (limit,)
             )
             return [dict(row) for row in cursor.fetchall()]

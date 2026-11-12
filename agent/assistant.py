@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from time import monotonic
+from time import monotonic, time
 from uuid import uuid4
 
 from livekit.agents import Agent, RunContext, ToolError, function_tool
@@ -21,7 +21,8 @@ class CallState:
     channel: Channel
     language: Language = "en"
     call_id: str = field(default_factory=lambda: uuid4().hex)
-    started_at: float = field(default_factory=monotonic)
+    started_at: float = field(default_factory=time)
+    started_monotonic: float = field(default_factory=monotonic)
     turns: int = 0
     tool_calls: int = 0
     no_results: int = 0
