@@ -38,18 +38,24 @@ def load_json_file(path: Path):
         raise ValidationError(f"{path.name}: cannot read file: {exc}") from exc
 
 
-def validate_numbers(value, path: Path) -> None:
+def validate_numbers(value, path: Path, production: bool = False) -> None:
     if not isinstance(value, list):
         raise ValidationError(f"{path.name}: 'numbers' must be a list")
+    if not value:
+        raise ValidationError(f"{path.name}: 'numbers' cannot be empty")
     for entry in value:
         if not isinstance(entry, str) or not E164_RE.match(entry):
             raise ValidationError(
                 f"{path.name}: number {entry!r} is not in E.164 format "
                 "(must start with a leading country code, e.g. +919876543210)"
             )
+        if production and (entry.startswith("+910000") or entry.replace("+", "").replace("0", "") == ""):
+            raise ValidationError(
+                f"{path.name}: number {entry!r} is a template placeholder, invalid for production"
+            )
 
 
-def validate_inbound_trunk(data: dict, path: Path) -> None:
+def validate_inbound_trunk(data: dict, path: Path, production: bool = False) -> None:
     trunk = data.get("trunk")
     if not isinstance(trunk, dict):
         raise ValidationError(f"{path.name}: missing 'trunk' object")
@@ -58,7 +64,7 @@ def validate_inbound_trunk(data: dict, path: Path) -> None:
         raise ValidationError(
             f"{path.name}: trunk name is {name!r}, expected {EXPECTED_TRUNK_NAME!r}"
         )
-    validate_numbers(trunk.get("numbers", []), path)
+    validate_numbers(trunk.get("numbers", []), path, production=production)
 
 
 def validate_dispatch_rule(data: dict, path: Path) -> None:
@@ -77,7 +83,7 @@ def validate_dispatch_rule(data: dict, path: Path) -> None:
         )
 
 
-def validate_file(path: Path) -> list[str]:
+def validate_file(path: Path, production: bool = False) -> list[str]:
     """Return a list of human-readable OK lines for a valid file."""
     data = load_json_file(path)
     if not isinstance(data, dict):
@@ -85,7 +91,7 @@ def validate_file(path: Path) -> list[str]:
 
     file_stem = path.stem
     if file_stem == "inbound_trunk":
-        validate_inbound_trunk(data, path)
+        validate_inbound_trunk(data, path, production=production)
     elif file_stem == "dispatch_rule":
         validate_dispatch_rule(data, path)
     else:
@@ -104,6 +110,11 @@ def main() -> int:
         default=Path(__file__).resolve().parent.parent / "telephony",
         help="Directory containing telephony *.json files (default: telephony/)",
     )
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="Enforce strict production checks (rejects template placeholder numbers)",
+    )
     args = parser.parse_args()
 
     telephony_dir: Path = args.dir
@@ -116,10 +127,18 @@ def main() -> int:
         print(f"error: no *.json files found in {telephony_dir}", file=sys.stderr)
         return 1
 
+    if args.production:
+        expected_files = {"inbound_trunk.json", "dispatch_rule.json"}
+        present_files = {p.name for p in json_files}
+        missing = expected_files - present_files
+        if missing:
+            print(f"error: missing required production files: {missing}", file=sys.stderr)
+            return 1
+
     failures: list[str] = []
     for path in json_files:
         try:
-            for line in validate_file(path):
+            for line in validate_file(path, production=args.production):
                 print(line)
         except ValidationError as exc:
             failures.append(str(exc))
