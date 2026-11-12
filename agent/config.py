@@ -19,7 +19,7 @@ class ConfigurationError(ValueError):
 @dataclass(frozen=True)
 class Settings:
     environment: str = "development"
-    agent_name: str = ""
+    agent_name: str = "nexi"
     timezone: str = "Asia/Kolkata"
     log_level: str = "INFO"
     pdf_dir: Path = ROOT / "uni_pdfs"
