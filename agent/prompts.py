@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 Channel = Literal["web", "phone"]
 Language = Literal["en", "te", "hi"]
 
+DEFAULT_LANGUAGE: Language = "en"
 PROMPT_VERSION = "phase4-v1"
 
 GREETINGS: dict[Language, dict[Channel, str]] = {

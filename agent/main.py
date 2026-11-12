@@ -11,7 +11,7 @@ import sys
 from dataclasses import asdict
 from time import monotonic
 
-from livekit import rtc
+from livekit import api, rtc
 from livekit.agents import (
     AgentSession,
     JobContext,
@@ -22,12 +22,13 @@ from livekit.agents import (
     metrics,
 )
 from livekit.agents.cli import cli as cli_state
-from livekit.plugins import deepgram, google, noise_cancellation, sarvam, silero
+from livekit.plugins import deepgram, google, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from agent.assistant import CallState, NexiAgent
 from agent.config import ConfigurationError, load_settings
 from agent.prompts import (
+    DEFAULT_LANGUAGE,
     FAREWELLS,
     GREETINGS,
     IDLE_PROMPTS,
@@ -37,6 +38,7 @@ from agent.prompts import (
 )
 from agent.storage import TelemetryStore
 from agent.telemetry import configure_logging, event
+from agent.tts_adapter import NexiSarvamTTS
 from rag.retriever import Retriever
 
 
@@ -53,9 +55,9 @@ def read_channel(metadata: str) -> tuple[Channel, Language]:
     channel: Channel = payload.get("channel", "web")
     if channel not in ("web", "phone"):
         channel = "web"
-    language: Language = payload.get("language", "en")
+    language: Language = payload.get("language", DEFAULT_LANGUAGE)
     if language not in ("en", "te", "hi"):
-        language = "en"
+        language = DEFAULT_LANGUAGE
     return channel, language
 
 
@@ -148,10 +150,10 @@ async def entrypoint(ctx: JobContext) -> None:
             retriever.close()
             if storage is not None:
                 try:
-                    storage.record_call_sync(
+                    await storage.record_call(
                         call_id=state.call_id,
                         started_at=state.started_at,
-                        duration=round(monotonic() - state.started_at, 3),
+                        duration=round(monotonic() - state.started_monotonic, 3),
                         channel=state.channel,
                         language=state.language,
                         status="error" if state.errors else "closed",
@@ -164,6 +166,12 @@ async def entrypoint(ctx: JobContext) -> None:
                         prompt_version=PROMPT_VERSION,
                         usage=asdict(usage.get_summary()),
                     )
+                    if state.no_results > 0:
+                        await storage.record_knowledge_gap(
+                            call_id=state.call_id,
+                            language=state.language,
+                            knowledge_version=retriever.knowledge_version,
+                        )
                 except Exception:
                     pass
             # The framework's reason may contain external content: log our own status only.
@@ -178,7 +186,7 @@ async def entrypoint(ctx: JobContext) -> None:
                 no_results=state.no_results,
                 errors=state.errors,
                 timeouts=state.timeouts,
-                duration=round(monotonic() - state.started_at, 3),
+                duration=round(monotonic() - state.started_monotonic, 3),
                 knowledge_version=retriever.knowledge_version,
                 prompt_version=PROMPT_VERSION,
                 usage=asdict(usage.get_summary()),
@@ -211,9 +219,14 @@ async def entrypoint(ctx: JobContext) -> None:
             if settings.noise_cancellation:
                 room_options.noise_cancellation = pick_noise_cancellation(participant.kind)
 
+        stt_lang = {
+            "en": settings.stt_language,
+            "te": "te",
+            "hi": "hi",
+        }.get(state.language, settings.stt_language)
         stt = deepgram.STT(
             model=settings.stt_model,
-            language=settings.stt_language,
+            language=stt_lang,
             api_key=settings.deepgram_api_key,
             interim_results=True,
             punctuate=True,
@@ -232,7 +245,7 @@ async def entrypoint(ctx: JobContext) -> None:
             if state.language == "te"
             else ("hi-IN" if state.language == "hi" else "en-IN")
         )
-        tts = sarvam.TTS(
+        tts = NexiSarvamTTS(
             target_language_code=target_lang,
             model=settings.tts_model,
             speaker=settings.tts_speaker,
@@ -252,6 +265,24 @@ async def entrypoint(ctx: JobContext) -> None:
             max_tool_steps=3,
         )
 
+        agent_busy = False
+        user_busy = False
+
+        @session.on("agent_state_changed")
+        def on_agent_state(ev):
+            nonlocal agent_busy, last_activity
+            agent_busy = ev.new_state in ("thinking", "speaking")
+            if agent_busy:
+                last_activity = monotonic()
+
+        @session.on("user_state_changed")
+        def on_user_state(ev):
+            nonlocal user_busy, last_activity, idle_prompted
+            user_busy = ev.new_state == "speaking"
+            if user_busy:
+                last_activity = monotonic()
+                idle_prompted = False
+
         @session.on("metrics_collected")
         def on_metrics(ev):
             usage.collect(ev.metrics)
@@ -265,16 +296,17 @@ async def entrypoint(ctx: JobContext) -> None:
                 and math.isfinite(value)
             }
             if storage is not None:
-                try:
-                    storage.record_stage_metrics_sync(
+                task = asyncio.create_task(
+                    storage.record_stage_metrics(
                         call_id=state.call_id,
                         channel=state.channel,
                         language=state.language,
                         stage=ev.metrics.type,
                         measurements=measurements,
                     )
-                except Exception:
-                    pass
+                )
+                tasks.add(task)
+                task.add_done_callback(tasks.discard)
             event(
                 "stage_metrics",
                 call_id=state.call_id,
@@ -292,6 +324,27 @@ async def entrypoint(ctx: JobContext) -> None:
             if ev.is_final:
                 state.turns += 1  # Observe only: never generate a reply here.
 
+        async def terminate_phone_call() -> None:
+            if state.channel != "phone" or console:
+                return
+            try:
+                await ctx.room.disconnect()
+            except Exception:
+                pass
+            if settings.livekit_url and settings.livekit_api_key and settings.livekit_api_secret:
+                try:
+                    lk_api = api.LiveKitAPI(
+                        settings.livekit_url,
+                        settings.livekit_api_key,
+                        settings.livekit_api_secret,
+                    )
+                    try:
+                        await lk_api.room.delete_room(api.DeleteRoomRequest(room=ctx.room.name))
+                    finally:
+                        await lk_api.aclose()
+                except Exception:
+                    pass
+
         async def report_failure() -> None:
             try:
                 await asyncio.wait_for(
@@ -303,6 +356,7 @@ async def entrypoint(ctx: JobContext) -> None:
             except Exception:
                 event("failure_notice_unavailable", call_id=state.call_id)
             finally:
+                await terminate_phone_call()
                 ctx.shutdown(reason="provider_failure")
 
         @session.on("error")
@@ -331,9 +385,13 @@ async def entrypoint(ctx: JobContext) -> None:
         async def monitor_inactivity() -> None:
             nonlocal last_activity, idle_prompted
             while not closed:
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(1.0)
                 if closed:
                     break
+                if agent_busy or user_busy:
+                    last_activity = monotonic()
+                    continue
+
                 elapsed = monotonic() - last_activity
                 if not idle_prompted and elapsed >= settings.idle_silence_timeout:
                     idle_prompted = True
@@ -349,9 +407,9 @@ async def entrypoint(ctx: JobContext) -> None:
                         )
                     except Exception:
                         pass
-                elif idle_prompted and elapsed >= (
-                    settings.idle_silence_timeout + settings.idle_silence_grace
-                ):
+                    # Grace window starts strictly AFTER the idle prompt completes speaking!
+                    last_activity = monotonic()
+                elif idle_prompted and elapsed >= settings.idle_silence_grace:
                     event(
                         "idle_timeout_closing",
                         call_id=state.call_id,
@@ -364,12 +422,9 @@ async def entrypoint(ctx: JobContext) -> None:
                         )
                     except Exception:
                         pass
+                    await terminate_phone_call()
                     ctx.shutdown(reason="idle_timeout")
                     break
-
-        inactivity_task = asyncio.create_task(monitor_inactivity())
-        tasks.add(inactivity_task)
-        inactivity_task.add_done_callback(tasks.discard)
 
         await session.start(
             room=ctx.room,
@@ -392,6 +447,12 @@ async def entrypoint(ctx: JobContext) -> None:
             state.timeouts += 1
             session.interrupt()
             event("greeting_timeout", call_id=state.call_id)
+
+        # Inactivity watchdog starts after greeting finishes
+        last_activity = monotonic()
+        inactivity_task = asyncio.create_task(monitor_inactivity())
+        tasks.add(inactivity_task)
+        inactivity_task.add_done_callback(tasks.discard)
         # Returning keeps the framework-owned job alive; shutdown callback owns cleanup.
     except BaseException:
         state.errors += 1
