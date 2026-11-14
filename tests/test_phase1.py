@@ -60,6 +60,8 @@ class PhaseOneChecks(unittest.TestCase):
                 "collection": COLLECTION,
                 "chunks": 1,
                 "embedding": model_fingerprint(settings),
+                "quality_status": "passed",
+                "partial": False,
             }
             (artifact / "manifest.json").write_text(json.dumps(manifest))
             self.assertEqual(read_active(settings)[0], artifact)
