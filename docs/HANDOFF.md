@@ -25,18 +25,19 @@ All backend work packages (WP0 through WP8) specified in the *Nexi Backend Compl
 
 ## 2. What is Complete but Live-Unverified (Pending Human)
 
-The following 19 items are structurally complete in code and covered by mocked automated tests, but inherently require live third-party accounts, real telephone networks, or physical ears:
+The following 25 criteria are structurally complete in code and covered by mocked automated tests, but inherently require live third-party accounts, real telephone networks, or physical human verification:
 
 1. **Provider Smoke Connectivity (`A0.4`):** Run `python scripts/smoke_providers.py` with real API keys.
-2. **Real Phone Calls (`A1.2`, `A1.3`, `A1.4`, `A1.5`, `A2.5`, `A2.6`):** Inbound telephone calls, 600s timeout, goodbye ending, SIP REFER transfer to verified number, DTMF keypad menu, and mid-call language switch.
-3. **Native Linguistic Review (`A2.2`, `A2.3`, `A2.7`):** Native Telugu and Hindi speakers listening to audio and verifying university terminology pronunciation.
-4. **Real Knowledge Base Evaluation (`A3.2`, `A3.3`, `A3.4`, `A3.5`):** Coverage approval and full evaluation gate execution on the real campus PDF corpus.
-5. **Real-Call Telemetry Baseline (`A4.2`):** Collecting 30+ live conversations to establish `docs/baselines/voice-latency-baseline.md`.
+2. **Real Phone Calls & Telephony (`A1.2`, `A1.3`, `A1.4`, `A1.5`, `A2.5`, `A2.6`):** Inbound telephone calls, 600s timeout, goodbye ending, SIP REFER transfer to verified number, DTMF keypad menu, and mid-call language switch.
+3. **Native Linguistic Review & Live STT/TTS (`A2.2`, `A2.3`, `A2.4`, `A2.7`):** Native Telugu and Hindi speakers verifying phrases and questions, live model evaluation, and listening protocol.
+4. **Real Knowledge Base Evaluation (`A3.2`, `A3.3`, `A3.4`, `A3.5`):** Coverage approval, evaluation question reviews, full real-corpus evaluation pass, and latency waiver decision if needed.
+5. **Real-Call Telemetry Baseline & Recovery (`A4.2`, `A4.3`):** Collecting 30+ live conversations for latency baseline, and killed worker DB recovery verification.
 6. **Live Rate Limiting & Readiness Probes (`A5.2`, `A5.3`, `A5.4`):** Real HTTP 429 and 503 verification against running daemons.
-7. **CI Remote Execution (`A7.1`):** Pushing branch to GitHub remote and verifying GitHub Actions run.
-8. **Live Concurrency Capacity Measurement (`A7.4`):** Running the 1, 5, 10 session load test with real web browser tabs.
+7. **Real-Audio Scenarios (`A6.3`):** Human auditory verification of interruption, provider errors, and duration notices.
+8. **CI Remote Execution (`A7.1`):** Pushing branch to GitHub remote and verifying GitHub Actions green runs.
+9. **Live Operations & Capacity (`A7.3`, `A7.4`, `A7.5`):** Running Docker Compose health checks, 1/5/10 session capacity tests, and operator runbook dry runs.
 
-All instructions to complete these items in minutes are documented in [docs/LIVE_ACCEPTANCE.md](file:///mnt/nexus/F-Drive/nexi-ntl/docs/LIVE_ACCEPTANCE.md).
+All instructions to complete these items in minutes are documented in [docs/LIVE_ACCEPTANCE.md](file:///mnt/nexus/F-Drive/nexi-ntl/docs/LIVE_ACCEPTANCE.md). Exactly 11 criteria are automated PASS; 25 criteria are PENDING-HUMAN (total: 36 criteria).
 
 ---
 

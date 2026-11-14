@@ -249,7 +249,7 @@ nexi-ntl/
 │   ├── test_token_service.py      # JWT token generation, claims & health checks
 │   ├── test_tts_adapter.py        # Sarvam v3 payload filtering & parameter validation
 │   └── scenarios/                 # Offline Lifecycle Scenarios (Phase 3)
-│       └── test_assistant_scenarios.py # 19 scenario tests for tool errors, timeouts & prompts
+│       └── test_session_scenarios.py   # 14 failure-prone end-to-end session scenario tests
 ├── web/                           # Lightweight Web Test Client
 │   └── index.html                 # Browser testing console with live audio visualizer
 ├── uni_pdfs/                      # Official SRM AP Policy PDFs (11 documents)

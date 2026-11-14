@@ -28,7 +28,7 @@ States:
 | A3.1 | Gate, activation, rollback, freshness and chunking tests | AUTOMATED | PASS | `tests/test_knowledge_gates.py` |
 | A3.2 | Human coverage approval of the real corpus | PENDING-HUMAN | PENDING-HUMAN | `python -m rag.coverage approve` |
 | A3.3 | Human review of at least 80 percent of evaluation items | PENDING-HUMAN | PENDING-HUMAN | `eval/questions.yaml` |
-| A3.4 | Full evaluation on the real corpus recorded (pass or honest failure) | AUTOMATED | PENDING-HUMAN | `python -m rag.eval run` |
+| A3.4 | Full evaluation on the real corpus recorded (pass or honest failure) | AUTOMATED | PASS | `data/knowledge/337ce61b42e1426896ba9cce2beaba4a/eval_report.json` |
 | A3.5 | Latency waiver decision, only if the latency gate fails | PENDING-HUMAN | PENDING-HUMAN | `manifest.json:latency_waiver` |
 | A4.1 | Telemetry, migration, privacy, retention and report tests | AUTOMATED | PASS | `tests/test_telemetry_durable.py` |
 | A4.2 | Saved voice latency baseline from real calls | PENDING-HUMAN | PENDING-HUMAN | `docs/baselines/voice-latency.md` |

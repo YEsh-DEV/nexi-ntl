@@ -17,6 +17,7 @@ services:
       - CHROMA_DIR=/data/knowledge
     volumes:
       - nexi-data:/data
+    command: ["python", "-m", "agent.main", "start", "--drain-timeout", "660"]
     stop_grace_period: 700s
     logging:
       driver: json-file

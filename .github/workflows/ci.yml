@@ -66,7 +66,7 @@ jobs:
 
       - name: Run Test Suite with Coverage
         run: |
-          coverage run -m unittest discover -s tests -p "test_*.py"
+          coverage run --branch -m unittest discover -s tests -p "test_*.py"
           coverage report --include="agent/*,rag/*" --fail-under=80
 
   eval-smoke:
@@ -88,8 +88,8 @@ jobs:
           pip install --no-cache-dir --upgrade pip
           pip install --no-cache-dir -r requirements-cpu-linux.lock
 
-      - name: Run Knowledge Gate Tests
-        run: python -m unittest tests/test_knowledge_gates.py
+      - name: Run Knowledge Gate Tests (Fakes)
+        run: python -m unittest tests.test_knowledge_gates.TestKnowledgeQualityGates
 
   eval-real:
     name: Real Model Knowledge Gate Evaluation
@@ -117,8 +117,8 @@ jobs:
           pip install --no-cache-dir --upgrade pip
           pip install --no-cache-dir -r requirements-cpu-linux.lock
 
-      - name: Run Evaluation Gate Tests
-        run: python -m unittest tests/test_knowledge_gates.py
+      - name: Run Real Model Evaluation Tests
+        run: python -m unittest tests.test_knowledge_gates.TestRetrieverSyncAndAsync
 
   docker:
     name: Docker Build & Compose Validation

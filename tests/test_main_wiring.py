@@ -132,6 +132,63 @@ class TestEntrypointWiring(unittest.IsolatedAsyncioTestCase):
 
             mock_session.start.assert_called_once()
 
+    async def test_entrypoint_phone_language_menu(self) -> None:
+        settings = Settings(
+            livekit_url="wss://test.livekit.cloud",
+            livekit_api_key="API123",
+            livekit_api_secret="SECRET123",
+            google_api_key="MockGoogle",
+            deepgram_api_key="MockDeepgram",
+            sarvam_api_key="MockSarvam",
+        )
+        mock_retriever = MagicMock()
+        mock_retriever.knowledge_version = "v1"
+        mock_retriever.search = AsyncMock()
+        mock_telemetry = MagicMock()
+        mock_telemetry.put_event = AsyncMock()
+
+        ctx = MagicMock()
+        ctx.proc.userdata = {
+            "settings": settings,
+            "retriever": mock_retriever,
+            "vad": MagicMock(),
+            "storage": MagicMock(),
+            "telemetry": mock_telemetry,
+        }
+        ctx.job.metadata = json.dumps({"channel": "phone"})
+        ctx.room.name = "test-phone-room"
+
+        with patch("agent.main.cli_state.CLI_ARGUMENTS", MagicMock(console=False)), \
+             patch("agent.main.connect_participant", AsyncMock(return_value=("sip_part_1", "+919876543210"))), \
+             patch("agent.main.build_providers", return_value=(MagicMock(), MagicMock(), MagicMock())), \
+             patch("agent.main.silero.VAD.load"), \
+             patch("agent.main.MultilingualModel"), \
+             patch("agent.main.AgentSession") as mock_session_cls, \
+             patch("agent.main.CallLifecycle") as mock_lifecycle_cls, \
+             patch("agent.language.PhoneLanguageMenu") as mock_menu_cls, \
+             patch("agent.language.switch_call_language", AsyncMock(return_value=(True, "Switched"))):
+            mock_session = MagicMock()
+            mock_session.start = AsyncMock()
+            mock_session.say = AsyncMock()
+            mock_session_cls.return_value = mock_session
+            mock_lifecycle = MagicMock()
+            mock_lifecycle_cls.return_value = mock_lifecycle
+
+            mock_menu_instance = MagicMock()
+            mock_menu_instance.run_menu = AsyncMock(return_value="te")
+            mock_menu_cls.return_value = mock_menu_instance
+
+            task = asyncio.create_task(entrypoint(ctx))
+            await asyncio.sleep(0.05)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+            mock_menu_cls.assert_called_once()
+            mock_menu_instance.run_menu.assert_called_once()
+
 
 class TestAssistantHelpers(unittest.IsolatedAsyncioTestCase):
     def test_build_providers(self) -> None:

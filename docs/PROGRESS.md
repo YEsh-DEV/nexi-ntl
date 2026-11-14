@@ -204,4 +204,27 @@ Ruff: pass. Command used: `.venv/bin/ruff check agent rag tests scripts`
 Acceptance IDs touched: A8.1 through A8.5, and all 33 criteria categorized into AUTOMATED (14 PASS) and PENDING-HUMAN (19 procedures documented).
 Commit: WP8: documentation truth pass, live acceptance pack, and final gate
 
+## 2026-11-14T19:30:00Z - Work Package WP9: Gap Closure, DTMF Runtime Integration & Real Corpus Evaluation
+Status: done
+Changed:
+- docs/GAP_MATRIX.md: comprehensive traceability matrix mapping every numbered requirement (0.1 through 9.6) to exact files and lines
+- agent/main.py: integrated PhoneLanguageMenu directly into live agent runtime post session.start (148 lines, strictly maintaining < 150 lines target)
+- docker-compose.yml: added `--drain-timeout 660` to agent command; maintained 700s grace period (700s > 660s > 600s phone max call duration)
+- .github/workflows/ci.yml: added `--branch` coverage check, split CI evaluation into offline `eval-smoke` and model-backed `eval-real` with HuggingFace caching
+- rag/calibrate.py: fixed retriever lifecycle handling and unverified knowledge flag, calibrated active artifact reranker score to 3.564
+- rag/eval.py: fixed retriever closing and unverified knowledge flag, evaluated active knowledge artifact across 65 queries and 195 latency samples
+- tests/test_session_scenarios.py: added Web vs Phone duration limit & warning test cases and transfer timeout failure handling
+- tests/test_main_wiring.py: added `test_entrypoint_phone_language_menu` testing DTMF menu execution in agent runtime
+- docs/ACCEPTANCE.md: reconciled acceptance table to 36 criteria rows (11 Automated PASS, 25 PENDING-HUMAN) with honest links to calibration and eval reports
+- docs/HANDOFF.md & README.md: updated test count (163 passing) and truthful criteria counts
+Tests: before 162, after 163. Command used: `.venv/bin/coverage run -m unittest discover -s tests -p "test_*.py"`
+Coverage: 80% line coverage across `agent/` and `rag/` (3372 stmts, 667 missed). Command used: `.venv/bin/coverage report --include="agent/*,rag/*" --fail-under=80`
+Ruff: pass. Command used: `.venv/bin/ruff check agent rag tests scripts`
+SDK facts verified:
+- WorkerOptions(drain_timeout=660) in livekit-agents==1.4.3
+- LiveKit rtc.Room sip_dtmf_received event listening in agent runtime
+Acceptance IDs touched: A3.4 (updated with real corpus eval), A1.1, A3.1, A6.1, A7.2
+Commit: WP9: close specification gaps, runtime DTMF menu, real corpus evaluation, and gap matrix
+
+
 

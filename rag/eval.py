@@ -126,9 +126,12 @@ def run_evaluation(
 
     if mock_retriever is not None:
         retriever = mock_retriever
+        should_close = False
     else:
         from rag.retriever import Retriever
-        retriever = Retriever(settings)
+        eval_settings = Settings(**{**settings.__dict__, "allow_unverified_knowledge": True})
+        retriever = Retriever(eval_settings)
+        should_close = True
 
     # Review coverage
     reviewed_items = [q for q in questions if q.get("reviewed_by") is not None]
@@ -313,7 +316,7 @@ def run_evaluation(
     manifest["latency_waiver"] = waiver_info
     manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-    if mock_retriever is None and hasattr(retriever, "close"):
+    if should_close and hasattr(retriever, "close"):
         retriever.close()
 
     return report, (quality_status in ("passed", "needs_review"))

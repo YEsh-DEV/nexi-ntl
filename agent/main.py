@@ -78,11 +78,6 @@ async def entrypoint(ctx: JobContext) -> None:
     room_opts = RoomInputOptions()
     part_id, phone_num = await connect_participant(ctx, settings, state, room_opts, console)
 
-    raw_meta = json.loads(ctx.job.metadata or "{}") if ctx.job.metadata else {}
-    if state.channel == "phone" and "language" not in raw_meta and not console:
-        from agent.language import PhoneLanguageMenu
-        state.language = await PhoneLanguageMenu(ctx.room, None, state, settings).run_menu()
-
     record_call_started(telemetry, state, ctx, phone_num)
 
     stt, llm, tts = build_providers(settings, state.language, state.channel)
@@ -102,6 +97,14 @@ async def entrypoint(ctx: JobContext) -> None:
     lifecycle.attach_session_handlers(telemetry=telemetry, storage=storage, usage=usage, console=console)
 
     await session.start(room=ctx.room, agent=NexiAgent(retriever, settings, state.channel, language=state.language), room_input_options=room_opts)
+
+    raw_meta = json.loads(ctx.job.metadata or "{}") if ctx.job.metadata else {}
+    if state.channel == "phone" and "language" not in raw_meta and not console:
+        from agent.language import PhoneLanguageMenu, switch_call_language
+        chosen_lang = await PhoneLanguageMenu(ctx.room, session, state, settings, transfer_fn=lifecycle.transfer_to_office).run_menu()
+        if chosen_lang != state.language:
+            await switch_call_language(session, state, settings, retriever, chosen_lang)
+
     event("call_ready", call_id=state.call_id, channel=state.channel, language=state.language, knowledge_version=retriever.knowledge_version)
 
     greet_key = "greeting_phone" if state.channel == "phone" else "greeting_web"
@@ -133,6 +136,7 @@ def main() -> None:
             initialize_process_timeout=settings.prewarm_timeout,
             shutdown_process_timeout=settings.shutdown_timeout * 3,
             num_idle_processes=settings.idle_processes,
+            drain_timeout=660,
         )
     )
 

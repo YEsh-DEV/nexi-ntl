@@ -89,11 +89,12 @@ def run_calibration(
         raise ValueError("No calibration split items found in questions file")
 
     if mock_score_func is not None:
-        score_func = mock_score_func
+        threshold, stats = calibrate_threshold(calib_questions, mock_score_func)
     else:
         from rag.retriever import Retriever
 
-        retriever = Retriever(settings)
+        eval_settings = Settings(**{**settings.__dict__, "allow_unverified_knowledge": True})
+        retriever = Retriever(eval_settings)
         try:
             def _real_score_func(query: str, item: dict[str, Any]) -> float:
                 import asyncio
@@ -101,11 +102,10 @@ def run_calibration(
                 if res.evidence:
                     return res.evidence[0].score
                 return -1.0
-            score_func = _real_score_func
+
+            threshold, stats = calibrate_threshold(calib_questions, _real_score_func)
         finally:
             retriever.close()
-
-    threshold, stats = calibrate_threshold(calib_questions, score_func)
 
     manifest_file = artifact_dir / "manifest.json"
     manifest = json.loads(manifest_file.read_text(encoding="utf-8"))

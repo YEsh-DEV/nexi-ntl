@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from agent.assistant import CallState, NexiAgent
 from agent.config import Settings
@@ -282,6 +282,33 @@ class TestSessionScenarios(unittest.IsolatedAsyncioTestCase):
         self.assertIn(EndReason.DURATION_LIMIT.value, ctx_web.shutdown_reasons)
         task_web.cancel()
 
+        # 2. Phone limit = 600s, warning lead = 30s (warning at 570s)
+        clock_phone = FakeClock(100.0)
+        state_phone = CallState(channel="phone", language="en", started_monotonic=100.0)
+        session_phone = FakeSession()
+        ctx_phone = FakeJobContext()
+        lc_phone = CallLifecycle(
+            ctx=ctx_phone,
+            state=state_phone,
+            settings=self.settings,
+            session=session_phone,
+            clock=clock_phone,
+            sleep_fn=clock_phone.sleep,
+        )
+        task_phone = lc_phone.start_duration_limiter()
+        await asyncio.sleep(0)
+
+        clock_phone.advance(571.0)
+        await asyncio.sleep(0)
+        self.assertEqual(len(session_phone.spoken), 1)
+        self.assertIn("maximum allowed duration", session_phone.spoken[0])
+
+        clock_phone.advance(31.0)
+        await asyncio.sleep(0)
+        self.assertEqual(lc_phone.lifecycle_state, LifecycleState.ENDED)
+        self.assertIn(EndReason.DURATION_LIMIT.value, ctx_phone.shutdown_reasons)
+        task_phone.cancel()
+
     # -------------------------------------------------------------------------
     # Scenario 9: end_call tool ends after farewell, bare thank-you does not end
     # -------------------------------------------------------------------------
@@ -357,6 +384,26 @@ class TestSessionScenarios(unittest.IsolatedAsyncioTestCase):
         failed = await lc2.transfer_to_office("admissions")
         self.assertFalse(failed)
         self.assertEqual(state2.transfer_failures, 1)
+
+        # 3. Timeout during transfer increments transfer_failures
+        state3 = CallState(channel="phone", language="en")
+        timeout_api = MagicMock()
+        timeout_api.sip.transfer_sip_participant = AsyncMock(side_effect=asyncio.TimeoutError())
+        lc3 = CallLifecycle(
+            ctx=FakeJobContext(),
+            state=state3,
+            settings=self.settings,
+            session=FakeSession(),
+            room=MagicMock(),
+            participant_identity="sip_student_3",
+            room_name="call-sip-transfer",
+            clock=self.clock,
+            sleep_fn=self.clock.sleep,
+            room_api=timeout_api,
+        )
+        timed_out = await lc3.transfer_to_office("admissions")
+        self.assertFalse(timed_out)
+        self.assertEqual(state3.transfer_failures, 1)
 
     # -------------------------------------------------------------------------
     # Scenario 11: Participant disconnecting ends call without speech
