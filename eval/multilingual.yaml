@@ -1,0 +1,471 @@
+# Multilingual and Code-Mixed Evaluation Dataset for SRM University-AP
+# Covers Telugu (te), Hindi (hi), and Code-Mixed student utterances.
+# Native speaker review is tracked per acceptance A2.3.
+
+version: 1
+dataset_metadata:
+  total_items: 50
+  categories:
+    te: 20
+    hi: 20
+    code_mixed: 10
+
+items:
+  # ============================================================================
+  # 1. Telugu Items (20)
+  # ============================================================================
+  - id: te-01
+    lang: te
+    utterance_text: "బీటెక్ కంప్యూటర్ సైన్స్ మొదటి సంవత్సరం ట్యూషన్ ఫీజు ఎంత?"
+    expected_query_entities: ["btech", "computer science", "fee"]
+    expected_evidence:
+      source: "data/json/tuition_fees.json"
+      must_contain: "B.Tech"
+    reviewed_by: null
+
+  - id: te-02
+    lang: te
+    utterance_text: "హాస్టల్ లో రెండు పడకల ఏసీ రూమ్ ఫీజు ఎంత?"
+    expected_query_entities: ["hostel", "2 bed", "ac", "fee"]
+    expected_evidence:
+      source: "data/json/hostel_fees.json"
+      must_contain: "2 Bed AC"
+    reviewed_by: null
+
+  - id: te-03
+    lang: te
+    utterance_text: "డాక్టర్ సివి రామన్ స్కాలర్‌షిప్ ఎలా దరఖాస్తు చేసుకోవాలి?"
+    expected_query_entities: ["cv raman", "scholarship"]
+    expected_evidence:
+      source: "data/json/scholarships.json"
+      must_contain: "CV Raman"
+    reviewed_by: null
+
+  - id: te-04
+    lang: te
+    utterance_text: "సెమిస్టర్ పరీక్షలకు హాజరు ఎంత శాతం తప్పనిసరి?"
+    expected_query_entities: ["attendance", "exam", "75%"]
+    expected_evidence:
+      source: "uni_pdfs/academic_ordinance.pdf"
+      must_contain: "75%"
+    reviewed_by: null
+
+  - id: te-05
+    lang: te
+    utterance_text: "అడ్మిషన్ల కార్యాలయం ఫోన్ నంబర్ ఇవ్వండి."
+    expected_query_entities: ["admissions", "contact", "phone"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "Admissions"
+    reviewed_by: null
+
+  - id: te-06
+    lang: te
+    utterance_text: "సివిల్ ఇంజనీరింగ్ హెచ్ఓడి ఎవరు?"
+    expected_query_entities: ["civil engineering", "hod"]
+    expected_evidence:
+      source: "data/json/faculty_civil.json"
+      must_contain: "Civil"
+    reviewed_by: null
+
+  - id: te-07
+    lang: te
+    utterance_text: "లైబ్రరీ పని వేళలు ఏమిటి?"
+    expected_query_entities: ["library", "timings"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "Library"
+    reviewed_by: null
+
+  - id: te-08
+    lang: te
+    utterance_text: "మెస్ మెనూ లో దక్షిణాది భోజనం ఉంటుందా?"
+    expected_query_entities: ["mess", "menu", "south indian"]
+    expected_evidence:
+      source: "data/json/hostel_fees.json"
+      must_contain: "Mess"
+    reviewed_by: null
+
+  - id: te-09
+    lang: te
+    utterance_text: "క్యాంపస్ హెల్త్ సెంటర్ ఎమర్జెన్సీ నంబర్ ఏమిటి?"
+    expected_query_entities: ["health center", "emergency", "number"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "Health Center"
+    reviewed_by: null
+
+  - id: te-10
+    lang: te
+    utterance_text: "ఎంటెక్ ప్రోగ్రామ్ కోసం గేట్ స్కోర్ తప్పనిసరిగా ఉండాలా?"
+    expected_query_entities: ["mtech", "gate", "score"]
+    expected_evidence:
+      source: "data/json/admissions_eligibility.json"
+      must_contain: "M.Tech"
+    reviewed_by: null
+
+  - id: te-11
+    lang: te
+    utterance_text: "ఎలక్ట్రానిక్స్ అండ్ కమ్యూనికేషన్ ఇంజనీరింగ్ ల్యాబ్ సౌకర్యాలు ఏమిటి?"
+    expected_query_entities: ["ece", "labs", "electronics"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "ECE"
+    reviewed_by: null
+
+  - id: te-12
+    lang: te
+    utterance_text: "విద్యా రుణం కోసం బోనఫైడ్ సర్టిఫికెట్ ఎలా పొందాలి?"
+    expected_query_entities: ["bonafide certificate", "education loan"]
+    expected_evidence:
+      source: "data/json/student_services.json"
+      must_contain: "Bonafide"
+    reviewed_by: null
+
+  - id: te-13
+    lang: te
+    utterance_text: "యూనివర్సిటీ బస్ రూట్లు మరియు ఫీజు వివరాలు ఏమిటి?"
+    expected_query_entities: ["transport", "bus", "fee"]
+    expected_evidence:
+      source: "data/json/transport.json"
+      must_contain: "Bus"
+    reviewed_by: null
+
+  - id: te-14
+    lang: te
+    utterance_text: "స్పోర్ట్స్ కాంప్లెక్స్ లో ఏ ఆటల సౌకర్యాలు ఉన్నాయి?"
+    expected_query_entities: ["sports", "gym", "games"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "Sports"
+    reviewed_by: null
+
+  - id: te-15
+    lang: te
+    utterance_text: "వై-ఫై కనెక్షన్ సమస్య వస్తే ఐటీ విభాగాన్ని ఎలా సంప్రదించాలి?"
+    expected_query_entities: ["wifi", "it support", "contact"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "IT Support"
+    reviewed_by: null
+
+  - id: te-16
+    lang: te
+    utterance_text: "పిహెచ్‌డి ఫెలోషిప్ ఎంత మొత్తం ఇస్తారు?"
+    expected_query_entities: ["phd", "stipend", "fellowship"]
+    expected_evidence:
+      source: "data/json/scholarships.json"
+      must_contain: "PhD"
+    reviewed_by: null
+
+  - id: te-17
+    lang: te
+    utterance_text: "ర్యాగింగ్ నిరోధక కమిటీ హెల్ప్‌లైన్ నంబర్ చెప్పండి."
+    expected_query_entities: ["anti-ragging", "helpline"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "Anti-Ragging"
+    reviewed_by: null
+
+  - id: te-18
+    lang: te
+    utterance_text: "క్యాంపస్ లో బ్యాంక్ లేదా ఏటీఎం ఉందా?"
+    expected_query_entities: ["bank", "atm", "campus"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "ATM"
+    reviewed_by: null
+
+  - id: te-19
+    lang: te
+    utterance_text: "ప్లేస్‌మెంట్స్ విభాగం రికార్డులు ఎలా ఉన్నాయి?"
+    expected_query_entities: ["placement", "highest package", "average"]
+    expected_evidence:
+      source: "data/json/placements.json"
+      must_contain: "Placement"
+    reviewed_by: null
+
+  - id: te-20
+    lang: te
+    utterance_text: "రీ-ఇవాల్యుయేషన్ కోసం ఫీజు మరియు నిబంధనలు ఏమిటి?"
+    expected_query_entities: ["re-evaluation", "exam", "fee"]
+    expected_evidence:
+      source: "uni_pdfs/academic_ordinance.pdf"
+      must_contain: "Re-evaluation"
+    reviewed_by: null
+
+  # ============================================================================
+  # 2. Hindi Items (20)
+  # ============================================================================
+  - id: hi-01
+    lang: hi
+    utterance_text: "बीटेक कंप्यूटर साइंस की सालाना ट्यूशन फीस कितनी है?"
+    expected_query_entities: ["btech", "computer science", "fee"]
+    expected_evidence:
+      source: "data/json/tuition_fees.json"
+      must_contain: "B.Tech"
+    reviewed_by: null
+
+  - id: hi-02
+    lang: hi
+    utterance_text: "हॉस्टल में तीन सीटर नॉन-एसी रूम का खर्च कितना होगा?"
+    expected_query_entities: ["hostel", "3 bed", "non-ac", "fee"]
+    expected_evidence:
+      source: "data/json/hostel_fees.json"
+      must_contain: "3 Bed"
+    reviewed_by: null
+
+  - id: hi-03
+    lang: hi
+    utterance_text: "स्कॉलरशिप के लिए न्यूनतम बारहवीं के अंक कितने चाहिए?"
+    expected_query_entities: ["scholarship", "eligibility", "12th marks"]
+    expected_evidence:
+      source: "data/json/scholarships.json"
+      must_contain: "Scholarship"
+    reviewed_by: null
+
+  - id: hi-04
+    lang: hi
+    utterance_text: "परीक्षा में बैठने के लिए कम से कम कितनी उपस्थिति जरूरी है?"
+    expected_query_entities: ["attendance", "minimum", "75%"]
+    expected_evidence:
+      source: "uni_pdfs/academic_ordinance.pdf"
+      must_contain: "75%"
+    reviewed_by: null
+
+  - id: hi-05
+    lang: hi
+    utterance_text: "दाखिला विभाग का ईमेल पता और फोन नंबर क्या है?"
+    expected_query_entities: ["admissions", "email", "phone"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "Admissions"
+    reviewed_by: null
+
+  - id: hi-06
+    lang: hi
+    utterance_text: "कंप्यूटर साइंस विभाग के डीन कौन हैं?"
+    expected_query_entities: ["computer science", "dean", "hod"]
+    expected_evidence:
+      source: "data/json/faculty_cse.json"
+      must_contain: "Computer Science"
+    reviewed_by: null
+
+  - id: hi-07
+    lang: hi
+    utterance_text: "केंद्रीय पुस्तकालय रात को कितने बजे तक खुला रहता है?"
+    expected_query_entities: ["library", "timings", "hours"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "Library"
+    reviewed_by: null
+
+  - id: hi-08
+    lang: hi
+    utterance_text: "हॉस्टल मेस में उत्तर भारतीय भोजन की सुविधा है क्या?"
+    expected_query_entities: ["mess", "north indian", "food"]
+    expected_evidence:
+      source: "data/json/hostel_fees.json"
+      must_contain: "Mess"
+    reviewed_by: null
+
+  - id: hi-09
+    lang: hi
+    utterance_text: "एम्बुलेंस और आपातकालीन चिकित्सा सेवा का नंबर क्या है?"
+    expected_query_entities: ["ambulance", "emergency", "medical"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "Emergency"
+    reviewed_by: null
+
+  - id: hi-10
+    lang: hi
+    utterance_text: "एमबीए प्रोग्राम में प्रवेश के लिए कौन से एंट्रेंस एग्जाम मान्य हैं?"
+    expected_query_entities: ["mba", "cat", "mat", "entrance"]
+    expected_evidence:
+      source: "data/json/admissions_eligibility.json"
+      must_contain: "MBA"
+    reviewed_by: null
+
+  - id: hi-11
+    lang: hi
+    utterance_text: "मैकेनिकल इंजीनियरिंग में रोबोटिक्स लैब की क्या सुविधाएं हैं?"
+    expected_query_entities: ["mechanical", "robotics", "lab"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "Mechanical"
+    reviewed_by: null
+
+  - id: hi-12
+    lang: hi
+    utterance_text: "फीस जमा करने के लिए बैंक ट्रांसफर की जानकारी दीजिए।"
+    expected_query_entities: ["fee payment", "bank account", "neft"]
+    expected_evidence:
+      source: "data/json/tuition_fees.json"
+      must_contain: "Account"
+    reviewed_by: null
+
+  - id: hi-13
+    lang: hi
+    utterance_text: "विजयवाड़ा रेलवे स्टेशन से कैंपस के लिए बस सेवा है क्या?"
+    expected_query_entities: ["transport", "bus", "vijayawada"]
+    expected_evidence:
+      source: "data/json/transport.json"
+      must_contain: "Vijayawada"
+    reviewed_by: null
+
+  - id: hi-14
+    lang: hi
+    utterance_text: "जिम और स्विमिंग पूल की टाइमिंग क्या है?"
+    expected_query_entities: ["gym", "swimming pool", "timings"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "Gym"
+    reviewed_by: null
+
+  - id: hi-15
+    lang: hi
+    utterance_text: "इंटरनेट वाई-फाई का नया पासवर्ड कैसे सेट करें?"
+    expected_query_entities: ["wifi", "password", "it support"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "IT"
+    reviewed_by: null
+
+  - id: hi-16
+    lang: hi
+    utterance_text: "रिसर्च स्कॉलर्स को कितना मासिक वजीफा मिलता है?"
+    expected_query_entities: ["research stipend", "fellowship"]
+    expected_evidence:
+      source: "data/json/scholarships.json"
+      must_contain: "Fellowship"
+    reviewed_by: null
+
+  - id: hi-17
+    lang: hi
+    utterance_text: "एंटी रैगिंग हेल्पलाइन नंबर क्या है?"
+    expected_query_entities: ["anti-ragging", "helpline"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "Anti-Ragging"
+    reviewed_by: null
+
+  - id: hi-18
+    lang: hi
+    utterance_text: "कैंपस में पोस्ट ऑफिस या कूरियर की सुविधा है?"
+    expected_query_entities: ["post office", "courier", "campus"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "Courier"
+    reviewed_by: null
+
+  - id: hi-19
+    lang: hi
+    utterance_text: "पिछले साल का सबसे बड़ा प्लेसमेंट पैकेज कितना था?"
+    expected_query_entities: ["highest placement package", "lpa"]
+    expected_evidence:
+      source: "data/json/placements.json"
+      must_contain: "Placement"
+    reviewed_by: null
+
+  - id: hi-20
+    lang: hi
+    utterance_text: "ग्रेड सुधारने के लिए सप्लीमेंट्री एग्जाम के नियम क्या हैं?"
+    expected_query_entities: ["supplementary exam", "backlog", "rules"]
+    expected_evidence:
+      source: "uni_pdfs/academic_ordinance.pdf"
+      must_contain: "Supplementary"
+    reviewed_by: null
+
+  # ============================================================================
+  # 3. Code-Mixed Items (10)
+  # ============================================================================
+  - id: cm-01
+    lang: te
+    utterance_text: "Hostel fee entha for 2-bed AC room?"
+    expected_query_entities: ["hostel fee", "2-bed", "ac"]
+    expected_evidence:
+      source: "data/json/hostel_fees.json"
+      must_contain: "2 Bed AC"
+    reviewed_by: null
+
+  - id: cm-02
+    lang: te
+    utterance_text: "CSE BTech tuition fee semester ki entha kattali?"
+    expected_query_entities: ["cse", "btech", "tuition fee"]
+    expected_evidence:
+      source: "data/json/tuition_fees.json"
+      must_contain: "B.Tech"
+    reviewed_by: null
+
+  - id: cm-03
+    lang: te
+    utterance_text: "Campus lo Wi-Fi speed and connection problem unte evariki cheppali?"
+    expected_query_entities: ["wifi", "it support", "complaint"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "IT Support"
+    reviewed_by: null
+
+  - id: cm-04
+    lang: te
+    utterance_text: "Attendance 75% kante takkuva unte exam rayanivvara?"
+    expected_query_entities: ["attendance", "75%", "exam"]
+    expected_evidence:
+      source: "uni_pdfs/academic_ordinance.pdf"
+      must_contain: "75%"
+    reviewed_by: null
+
+  - id: cm-05
+    lang: te
+    utterance_text: "Admissions office phone number and email ID ivvandi please."
+    expected_query_entities: ["admissions", "phone", "email"]
+    expected_evidence:
+      source: "data/json/contact_directory.json"
+      must_contain: "Admissions"
+    reviewed_by: null
+
+  - id: cm-06
+    lang: hi
+    utterance_text: "BTech CSE ki annual tuition fee kitni hai?"
+    expected_query_entities: ["btech", "cse", "tuition fee"]
+    expected_evidence:
+      source: "data/json/tuition_fees.json"
+      must_contain: "B.Tech"
+    reviewed_by: null
+
+  - id: cm-07
+    lang: hi
+    utterance_text: "Hostel room me AC ka extra charge kitna lagta hai?"
+    expected_query_entities: ["hostel", "ac charge", "fee"]
+    expected_evidence:
+      source: "data/json/hostel_fees.json"
+      must_contain: "AC"
+    reviewed_by: null
+
+  - id: cm-08
+    lang: hi
+    utterance_text: "Scholarship ke liye minimum percentage criteria kya hai?"
+    expected_query_entities: ["scholarship", "percentage", "criteria"]
+    expected_evidence:
+      source: "data/json/scholarships.json"
+      must_contain: "Scholarship"
+    reviewed_by: null
+
+  - id: cm-09
+    lang: hi
+    utterance_text: "Library card renew karane ke liye kahan jana padega?"
+    expected_query_entities: ["library", "card", "timings"]
+    expected_evidence:
+      source: "data/json/facilities.json"
+      must_contain: "Library"
+    reviewed_by: null
+
+  - id: cm-10
+    lang: hi
+    utterance_text: "Placement season me top recruiters kaun kaun si companies aati hain?"
+    expected_query_entities: ["placement", "recruiters", "companies"]
+    expected_evidence:
+      source: "data/json/placements.json"
+      must_contain: "Placement"
+    reviewed_by: null
