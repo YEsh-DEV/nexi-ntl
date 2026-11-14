@@ -1,9 +1,10 @@
-"""Token generation and health API service for web and mobile clients."""
+"""Token generation, rate limiting, admission control, and health API service."""
 
 from __future__ import annotations
 
+import asyncio
 import json
-import os
+import logging
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -12,19 +13,16 @@ from uuid import uuid4
 
 from livekit import api
 
-from agent.config import Settings, load_settings
+from agent.admission import AdmissionController
+from agent.config import ConfigurationError, Settings, load_settings
+from agent.ratelimit import RateLimiter
+from agent.readiness import ReadinessChecker
+from agent.storage import TelemetryStore, compute_caller_hash
 from rag.manifest import read_active
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_BODY_BYTES = 16 * 1024  # 16 KB bound on JSON request body
-ALLOWED_ORIGINS = {
-    orig.strip()
-    for orig in os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,http://127.0.0.1:3000",
-    ).split(",")
-    if orig.strip()
-}
+LOGGER = logging.getLogger("nexi.token_service")
 
 
 def generate_token(
@@ -46,15 +44,19 @@ def generate_token(
     display_name = name or (
         "Student" if language == "en" else "విద్యార్థి" if language == "te" else "छात्र"
     )
-    room_name = f"nexi-{channel}-{uuid4().hex[:12]}"
+    room_name = f"web-{uuid4().hex[:12]}"
     dispatch_agent = settings.agent_name or "nexi"
 
     dispatch_meta = json.dumps({"channel": channel, "language": language}, ensure_ascii=False)
     room_config = api.RoomConfiguration(
-        agents=[api.RoomAgentDispatch(agent_name=dispatch_agent, metadata=dispatch_meta)]
+        name=room_name,
+        empty_timeout=300,
+        departure_timeout=30,
+        max_participants=2,
+        agents=[api.RoomAgentDispatch(agent_name=dispatch_agent, metadata=dispatch_meta)],
     )
 
-    ttl = timedelta(minutes=15)
+    ttl = timedelta(seconds=settings.token_ttl_s)
     # Restrict grants strictly: room join, publish microphone only, data channel, subscribe
     grants = api.VideoGrants(
         room_join=True,
@@ -88,15 +90,30 @@ def generate_token(
 
 def check_health(settings: Settings) -> dict[str, object]:
     """Check active knowledge base and runtime configuration status."""
-    path, manifest = read_active(settings)
+    try:
+        path, manifest = read_active(settings)
+        knowledge_status = "verified"
+    except RuntimeError:
+        root = settings.chroma_dir.resolve()
+        from rag.manifest import read_active_version, resolve_artifact_path
+
+        version = read_active_version(root)
+        path = resolve_artifact_path(root, version)
+        manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+        knowledge_status = "unverified"
+
     livekit_configured = bool(
         settings.livekit_url and settings.livekit_api_key and settings.livekit_api_secret
     )
+    is_healthy = livekit_configured and (
+        knowledge_status == "verified" or settings.environment == "development"
+    )
     return {
-        "status": "healthy" if livekit_configured else "degraded",
+        "status": "healthy" if is_healthy else "degraded",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "knowledge_version": manifest["version"],
-        "chunks": manifest["chunks"],
+        "knowledge_version": manifest.get("version", "unknown"),
+        "chunks": manifest.get("chunks", 0),
+        "knowledge_status": knowledge_status,
         "environment": settings.environment,
         "agent_name": settings.agent_name or "nexi",
         "livekit_configured": livekit_configured,
@@ -107,41 +124,76 @@ def check_health(settings: Settings) -> dict[str, object]:
 
 
 class TokenApiHandler(BaseHTTPRequestHandler):
-    """Zero-dependency HTTP handler for /api/token and /api/health."""
+    """Hardened HTTP handler for token issuance, rate limits, admission, and readiness."""
 
     settings: Settings = load_settings()
+    storage: TelemetryStore = TelemetryStore(settings)
+    rate_limiter: RateLimiter = RateLimiter(settings)
+    admission: AdmissionController = AdmissionController(settings, storage)
+    readiness: ReadinessChecker = ReadinessChecker(settings, storage)
 
-    def _get_cors_origin(self) -> str:
-        origin = self.headers.get("Origin", "")
-        if origin in ALLOWED_ORIGINS:
+    def _get_request_id(self) -> str:
+        return self.headers.get("X-Request-Id") or uuid4().hex
+
+    def _get_cors_origin(self) -> str | None:
+        origin = self.headers.get("Origin", "").strip()
+        if origin and origin in self.settings.allowed_origins:
             return origin
-        return "http://localhost:8080"
+        return None
 
-    def _send_json(self, status: HTTPStatus, data: dict[str, object]) -> None:
+    def _send_json(
+        self,
+        status: int | HTTPStatus,
+        data: dict[str, object],
+        headers: dict[str, str] | None = None,
+    ) -> None:
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", self._get_cors_origin())
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("X-Request-Id", self._get_request_id())
+        self.send_header("Vary", "Origin")
+
+        allowed_origin = self._get_cors_origin()
+        if allowed_origin:
+            self.send_header("Access-Control-Allow-Origin", allowed_origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Request-Id")
+
         self.send_header("Cache-Control", "no-store")
+        if headers:
+            for k, v in headers.items():
+                self.send_header(k, v)
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self) -> None:
         self.send_response(HTTPStatus.NO_CONTENT)
-        self.send_header("Access-Control-Allow-Origin", self._get_cors_origin())
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("X-Request-Id", self._get_request_id())
+        self.send_header("Vary", "Origin")
+        allowed_origin = self._get_cors_origin()
+        if allowed_origin:
+            self.send_header("Access-Control-Allow-Origin", allowed_origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Request-Id")
+            self.send_header("Access-Control-Max-Age", "86400")
         self.end_headers()
 
     def do_GET(self) -> None:
         self.request.settimeout(5.0)
-        if self.path in ("/api/health", "/health"):
+        req_id = self._get_request_id()
+
+        if self.path in ("/healthz", "/healthz/"):
+            data = asyncio.run(self.readiness.check_liveness())
+            self._send_json(HTTPStatus.OK, data)
+        elif self.path in ("/readyz", "/readyz/"):
+            code, data = asyncio.run(self.readiness.check_readiness())
+            self._send_json(code, data)
+        elif self.path in ("/api/health", "/health"):
             try:
                 self._send_json(HTTPStatus.OK, check_health(self.settings))
-            except Exception:
+            except Exception as exc:
+                LOGGER.warning("Health check failed: %s", exc)
                 self._send_json(
                     HTTPStatus.SERVICE_UNAVAILABLE,
                     {"status": "unhealthy", "error": "Health check failed"},
@@ -153,6 +205,7 @@ class TokenApiHandler(BaseHTTPRequestHandler):
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(content)))
+                self.send_header("X-Request-Id", req_id)
                 self.end_headers()
                 self.wfile.write(content)
             else:
@@ -162,49 +215,111 @@ class TokenApiHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         self.request.settimeout(5.0)
-        if self.path in ("/api/token", "/token"):
+        req_id = self._get_request_id()
+
+        # 1. Rate limiting check
+        peer_ip = self.client_address[0] if self.client_address else "127.0.0.1"
+        xff = self.headers.get("X-Forwarded-For")
+        allowed, retry_after, client_ip = self.rate_limiter.check_rate_limit(peer_ip, xff)
+        client_hash = compute_caller_hash(client_ip, self.settings.pii_hash_key)
+
+        if not allowed:
+            LOGGER.warning(
+                "Rate limit exceeded for client %s (req_id: %s); retry after %ds",
+                client_hash,
+                req_id,
+                retry_after,
+            )
+            self._send_json(
+                HTTPStatus.TOO_MANY_REQUESTS,
+                {"error": "rate_limited", "retry_after_s": retry_after},
+                headers={"Retry-After": str(retry_after)},
+            )
+            return
+
+        # 2. Token issuance route
+        if self.path in ("/api/token", "/token", "/api/token/", "/token/"):
+            # Enforce Content-Type
+            ct = self.headers.get("Content-Type", "").strip()
+            if not ct.startswith("application/json"):
+                self._send_json(
+                    HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
+                    {"error": "Content-Type must be application/json"},
+                )
+                return
+
+            raw_len = self.headers.get("Content-Length")
+            if not raw_len:
+                payload: dict[str, object] = {}
+            else:
+                try:
+                    length = int(raw_len)
+                except ValueError:
+                    self._send_json(
+                        HTTPStatus.BAD_REQUEST, {"error": "Invalid Content-Length header"}
+                    )
+                    return
+
+                if length > MAX_BODY_BYTES:
+                    self._send_json(
+                        HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                        {"error": f"Payload exceeds limit of {MAX_BODY_BYTES} bytes"},
+                    )
+                    return
+
+                raw_data = self.rfile.read(length) if length > 0 else b"{}"
+                try:
+                    payload = json.loads(raw_data)
+                except json.JSONDecodeError:
+                    self._send_json(
+                        HTTPStatus.BAD_REQUEST, {"error": "Malformed JSON in request body"}
+                    )
+                    return
+
+                if not isinstance(payload, dict):
+                    self._send_json(
+                        HTTPStatus.BAD_REQUEST, {"error": "Request body must be a JSON object"}
+                    )
+                    return
+
+            language = str(payload.get("language", "en")).strip().lower()
+            if language not in ("en", "te", "hi"):
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": "Language must be 'en', 'te', or 'hi'"},
+                )
+                return
+
+            # 3. Daily quota check
+            budget_ok, err_reason, b_status, b_retry = self.admission.check_and_consume_daily_budget()
+            if not budget_ok:
+                LOGGER.warning("Daily token budget exhausted (req_id: %s)", req_id)
+                self._send_json(
+                    b_status,
+                    {"error": err_reason},
+                    headers={"Retry-After": str(b_retry)},
+                )
+                return
+
+            # 4. Admission capacity check
+            cap_ok, cap_err, cap_status, cap_retry = asyncio.run(self.admission.check_capacity())
+            if not cap_ok:
+                LOGGER.warning("Admission capacity check denied: %s (req_id: %s)", cap_err, req_id)
+                self._send_json(
+                    cap_status,
+                    {"error": cap_err},
+                    headers={"Retry-After": str(cap_retry)},
+                )
+                return
+
+            # 5. Generate token (channel is fixed to 'web')
             try:
-                raw_len = self.headers.get("Content-Length")
-                if not raw_len:
-                    payload = {}
-                else:
-                    try:
-                        length = int(raw_len)
-                    except ValueError:
-                        self._send_json(
-                            HTTPStatus.BAD_REQUEST, {"error": "Invalid Content-Length header"}
-                        )
-                        return
-
-                    if length > MAX_BODY_BYTES:
-                        self._send_json(
-                            HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-                            {"error": f"Payload exceeds limit of {MAX_BODY_BYTES} bytes"},
-                        )
-                        return
-
-                    raw_data = self.rfile.read(length) if length > 0 else b"{}"
-                    try:
-                        payload = json.loads(raw_data)
-                    except json.JSONDecodeError:
-                        self._send_json(
-                            HTTPStatus.BAD_REQUEST, {"error": "Malformed JSON in request body"}
-                        )
-                        return
-
-                    if not isinstance(payload, dict):
-                        self._send_json(
-                            HTTPStatus.BAD_REQUEST, {"error": "Request body must be a JSON object"}
-                        )
-                        return
-
-                channel = str(payload.get("channel", "web"))
-                language = str(payload.get("language", "en"))
-                result = generate_token(self.settings, channel=channel, language=language)
+                result = generate_token(self.settings, channel="web", language=language)
                 self._send_json(HTTPStatus.OK, result)
             except ValueError as exc:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
-            except Exception:
+            except Exception as exc:
+                LOGGER.error("Failed generating token (req_id: %s): %s", req_id, exc)
                 self._send_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"error": "Failed to generate room token"},
@@ -214,9 +329,13 @@ class TokenApiHandler(BaseHTTPRequestHandler):
 
 
 def serve_token_api(port: int = 8080, host: str | None = None) -> None:
-    listen_host = host or os.getenv("HOST", "127.0.0.1")
+    settings = load_settings()
+    if settings.environment == "production" and "*" in settings.allowed_origins:
+        raise ConfigurationError("ALLOWED_ORIGINS cannot contain wildcards in production")
+
+    listen_host = host or settings.host or "127.0.0.1"
     server = HTTPServer((listen_host, port), TokenApiHandler)
-    print(f"Nexi Token API server running on http://{listen_host}:{port}")
+    LOGGER.info("Nexi Token API server running on http://%s:%d", listen_host, port)
     server.serve_forever()
 
 
