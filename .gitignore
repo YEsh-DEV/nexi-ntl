@@ -20,6 +20,8 @@ E:/chromadb/
 *.log
 .pytest_cache/
 coverage/
+.coverage
+.coverage.*
 
 prompt.py
 
@@ -48,8 +50,9 @@ data/telemetry/
 
 # Internal documentation and implementation playbooks (kept local only)
 Nexi — Implementation Playbook.md
+Nexi Backend Completion Spec (Phases 0 to 6) - Execution Document for the Coding.md
 SYSTEM_ARCHITECTURE.md
 BACKEND_REVIEW.md
-docs/
 KMS/
 session_data/
+.playwright-mcp/

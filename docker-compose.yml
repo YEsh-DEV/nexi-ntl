@@ -1,0 +1,125 @@
+services:
+  agent:
+    build:
+      context: .
+      target: agent
+    image: nexi-agent:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - path: .env.local
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - DATABASE_PATH=/data/telemetry/nexi.sqlite3
+      - CHROMA_DIR=/data/knowledge
+    volumes:
+      - nexi-data:/data
+    stop_grace_period: 700s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          # PLACEHOLDER: calibrate with scripts/capacity_report.py
+          cpus: "2.0"
+          memory: 2048M
+
+  token:
+    build:
+      context: .
+      target: token
+    image: nexi-token:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - path: .env.local
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - DATABASE_PATH=/data/telemetry/nexi.sqlite3
+      - CHROMA_DIR=/data/knowledge
+      - TOKEN_SERVER_HOST=0.0.0.0
+      - TOKEN_SERVER_PORT=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - nexi-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          # PLACEHOLDER: calibrate with scripts/capacity_report.py
+          cpus: "1.0"
+          memory: 512M
+
+  maintenance:
+    build:
+      context: .
+      target: runtime-base
+    image: nexi-maintenance:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - path: .env.local
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - DATABASE_PATH=/data/telemetry/nexi.sqlite3
+      - CHROMA_DIR=/data/knowledge
+    volumes:
+      - nexi-data:/data
+    command: ["python", "-m", "agent.maintenance", "run"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  ingest:
+    build:
+      context: .
+      target: runtime-base
+    image: nexi-ingest:latest
+    profiles:
+      - ingest
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - path: .env.local
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - DATABASE_PATH=/data/telemetry/nexi.sqlite3
+      - CHROMA_DIR=/data/knowledge
+    volumes:
+      - nexi-data:/data
+    command: ["python", "-m", "rag.ingest", "build"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  nexi-data:
+    name: nexi-data
