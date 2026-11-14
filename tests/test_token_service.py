@@ -27,7 +27,7 @@ class TokenServiceTests(unittest.TestCase):
         self.assertEqual(res["channel"], "web")
         self.assertEqual(res["language"], "en")
         self.assertEqual(res["url"], "wss://test.livekit.cloud")
-        self.assertTrue(str(res["room"]).startswith("nexi-web-"))
+        self.assertTrue(str(res["room"]).startswith("web-"))
         self.assertTrue(str(res["identity"]).startswith("student-"))
         self.assertTrue(len(str(res["token"])) > 100)
 
