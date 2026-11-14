@@ -1,0 +1,37 @@
+# Expected source files and minimum chunk thresholds for knowledge coverage audit
+version: 1
+
+expected_sources:
+  - pattern: "pdf/Hostel-Policy.pdf"
+    min_chunks: 10
+    required: true
+  - pattern: "pdf/Academic Calendar AY 2025-26.pdf"
+    min_chunks: 10
+    required: true
+  - pattern: "pdf/Academic-Programmes-Ordinances.pdf"
+    min_chunks: 50
+    required: true
+  - pattern: "pdf/student_handbook.pdf"
+    min_chunks: 30
+    required: true
+  - pattern: "pdf/student-code-of-conduct-policy-of-SRM-university-AP-.pdf"
+    min_chunks: 20
+    required: true
+  - pattern: "pdf/Student's Attendance Policy.pdf"
+    min_chunks: 2
+    required: true
+  - pattern: "pdf/Student Instructions_Detailed_Endterm Exams_May2025.pdf"
+    min_chunks: 5
+    required: true
+  - pattern: "pdf/13.Student Internship Policy.pdf"
+    min_chunks: 5
+    required: true
+  - pattern: "pdf/17. Financial Assistance Policy of SRM University - AP to UG and PG Students for Attending Conferences, Workshops and Competitions.pdf"
+    min_chunks: 5
+    required: true
+  - pattern: "pdf/31. Seed Grant Assistance Policy of SRM University - AP to Full Time UG & PG Students for Research Projects (2).pdf"
+    min_chunks: 5
+    required: true
+  - pattern: "pdf/ugc-proforma-with-appendix.pdf"
+    min_chunks: 50
+    required: true

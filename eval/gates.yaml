@@ -1,0 +1,10 @@
+# Quality gates for knowledge index evaluation
+version: 1
+
+gates:
+  heldout_evidence_hit_at_4: 0.85
+  off_topic_abstention: 1.0
+  borderline_abstention: 0.90
+  false_abstention_max: 0.10
+  retrieval_p95_ms: 800.0
+  min_review_coverage: 0.80
