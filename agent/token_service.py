@@ -131,6 +131,7 @@ class TokenApiHandler(BaseHTTPRequestHandler):
     rate_limiter: RateLimiter = RateLimiter(settings)
     admission: AdmissionController = AdmissionController(settings, storage)
     readiness: ReadinessChecker = ReadinessChecker(settings, storage)
+    retriever: object = None
 
     def _get_request_id(self) -> str:
         return self.headers.get("X-Request-Id") or uuid4().hex
@@ -324,6 +325,125 @@ class TokenApiHandler(BaseHTTPRequestHandler):
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"error": "Failed to generate room token"},
                 )
+        elif self.path in ("/api/query", "/query", "/api/query/", "/query/"):
+            ct = self.headers.get("Content-Type", "").strip()
+            if not ct.startswith("application/json"):
+                self._send_json(
+                    HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
+                    {"error": "Content-Type must be application/json"},
+                )
+                return
+
+            raw_len = self.headers.get("Content-Length")
+            if not raw_len:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Missing Content-Length header"})
+                return
+
+            try:
+                length = int(raw_len)
+            except ValueError:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Invalid Content-Length header"})
+                return
+
+            if length > MAX_BODY_BYTES:
+                self._send_json(
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    {"error": f"Payload exceeds limit of {MAX_BODY_BYTES} bytes"},
+                )
+                return
+
+            raw_data = self.rfile.read(length) if length > 0 else b"{}"
+            try:
+                payload = json.loads(raw_data)
+            except json.JSONDecodeError:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Malformed JSON in request body"})
+                return
+
+            if not isinstance(payload, dict):
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Request body must be a JSON object"})
+                return
+
+            query = str(payload.get("query", "")).strip()
+            language = str(payload.get("language", "en")).strip().lower()
+
+            if not query:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "Query cannot be empty"})
+                return
+
+            if len(query) > self.settings.query_max_chars:
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": f"Query exceeds limit of {self.settings.query_max_chars} chars"},
+                )
+                return
+
+            if language not in ("en", "te", "hi"):
+                language = "en"
+
+            # Lazy-load Retriever if needed
+            if self.retriever is None:
+                try:
+                    from rag.retriever import Retriever
+
+                    self.retriever = Retriever(self.settings)
+                except Exception as exc:
+                    LOGGER.warning("Could not initialize Retriever: %s", exc)
+
+            citations: list[dict[str, object]] = []
+            answer = "No matching university regulation or clause was found for your inquiry."
+            top_score = 0.0
+            k_version = "offline"
+            reason = "retriever_unavailable"
+
+            if self.retriever is not None:
+                try:
+                    search_func = getattr(self.retriever, "_search_sync", None) or getattr(
+                        self.retriever, "search_sync", None
+                    )
+                    if callable(search_func):
+                        search_res = search_func(query)
+                    else:
+                        search_res = asyncio.run(self.retriever.search(query))
+
+                    top_score = float(getattr(search_res, "top_score", 0.0))
+                    k_version = str(getattr(search_res, "knowledge_version", "unknown"))
+                    reason = str(getattr(search_res, "reason", "ok"))
+                    ev_list = getattr(search_res, "evidence", ())
+
+                    for ev in ev_list:
+                        citations.append(
+                            {
+                                "chunk_id": str(getattr(ev, "chunk_id", "")),
+                                "document": str(getattr(ev, "source", "SRM AP Academic Policy")),
+                                "section": str(
+                                    getattr(ev, "page_or_path", "") or "General Ordinance"
+                                ),
+                                "relevanceScore": round(float(getattr(ev, "score", 0.0)), 4),
+                                "excerpt": str(getattr(ev, "text", ""))[:300],
+                            }
+                        )
+
+                    if ev_list:
+                        answer = str(getattr(ev_list[0], "text", ""))
+                except Exception as exc:
+                    LOGGER.error("RAG retrieval failed (req_id: %s): %s", req_id, exc)
+                    reason = f"retrieval_error: {exc}"
+
+            confidence_pct = round(min(max(top_score * 100.0, 0.0), 100.0), 1) if top_score > 0 else 0.0
+
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "query": query,
+                    "language": language,
+                    "answer": answer,
+                    "confidence": round(top_score, 4),
+                    "confidence_pct": confidence_pct,
+                    "knowledge_version": k_version,
+                    "reason": reason,
+                    "citations": citations,
+                },
+            )
         else:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 

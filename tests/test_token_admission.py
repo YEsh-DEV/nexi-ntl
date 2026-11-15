@@ -378,7 +378,11 @@ class TestTokenApiHandler(unittest.TestCase):
             google_api_key="MockGoogle",
             deepgram_api_key="MockDeepgram",
             sarvam_api_key="MockSarvam",
-            allowed_origins=("http://localhost:3000", "http://example.com"),
+            allowed_origins=(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://example.com",
+            ),
             token_ttl_s=300.0,
             max_concurrent_calls=5,
             max_tokens_per_day=50,
@@ -564,6 +568,61 @@ class TestTokenApiHandler(unittest.TestCase):
             # POST not found
             code5, _, _ = self._execute_request("POST", "/unknown/post", {"Content-Type": "application/json"}, b"{}")
             self.assertEqual(code5, 404)
+
+    def test_query_endpoint_handling(self) -> None:
+        # 1. Unsupported media type
+        code1, _, body1 = self._execute_request(
+            "POST",
+            "/api/query",
+            {"Content-Type": "text/plain"},
+            b"What is attendance?",
+        )
+        self.assertEqual(code1, 415)
+
+        # 2. Empty query validation
+        code2, _, body2 = self._execute_request(
+            "POST",
+            "/api/query",
+            {"Content-Type": "application/json"},
+            b'{"query": ""}',
+        )
+        self.assertEqual(code2, 400)
+        self.assertIn("cannot be empty", json.loads(body2)["error"])
+
+        # 3. Successful query with mocked retriever
+        mock_evidence = MagicMock()
+        mock_evidence.chunk_id = "test_chunk_1"
+        mock_evidence.source = "Academic_Regulations_2024.pdf"
+        mock_evidence.page_or_path = "Section 4.2"
+        mock_evidence.score = 0.984
+        mock_evidence.text = "Minimum 75% attendance is required for examinations."
+
+        mock_search_res = MagicMock()
+        mock_search_res.top_score = 0.984
+        mock_search_res.knowledge_version = "v202410"
+        mock_search_res.reason = "ok"
+        mock_search_res.evidence = (mock_evidence,)
+
+        fake_retriever = MagicMock()
+        fake_retriever._search_sync.return_value = mock_search_res
+        TokenApiHandler.retriever = fake_retriever
+
+        code3, headers3, body3 = self._execute_request(
+            "POST",
+            "/api/query",
+            {"Content-Type": "application/json", "Origin": "http://localhost:5173"},
+            b'{"query": "What is the 75% attendance rule?", "language": "en"}',
+        )
+        self.assertEqual(code3, 200)
+        self.assertEqual(headers3.get("Access-Control-Allow-Origin"), "http://localhost:5173")
+        res_data = json.loads(body3)
+        self.assertEqual(res_data["query"], "What is the 75% attendance rule?")
+        self.assertEqual(res_data["confidence_pct"], 98.4)
+        self.assertEqual(len(res_data["citations"]), 1)
+        self.assertEqual(res_data["citations"][0]["document"], "Academic_Regulations_2024.pdf")
+        self.assertEqual(res_data["citations"][0]["section"], "Section 4.2")
+        self.assertIn("75% attendance", res_data["answer"])
+        TokenApiHandler.retriever = None
 
 
 if __name__ == "__main__":
