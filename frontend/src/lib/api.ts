@@ -31,14 +31,25 @@ export interface QueryResponse {
   citations: Citation[];
 }
 
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080').replace(/\/+$/, '');
-const LIVEKIT_URL_OVERRIDE = import.meta.env.VITE_LIVEKIT_URL || '';
+// Resolve backend API URL safely:
+// 1. Explicit VITE_BACKEND_URL environment variable if provided.
+// 2. In local development (DEV mode), default to http://localhost:8080.
+// 3. In production deployments without an override, fall back to relative path ''
+//    to avoid mixed-content SSL blocks or failing connections to localhost.
+const rawBackendUrl = (import.meta.env.VITE_BACKEND_URL || '').trim();
+const BACKEND_URL = rawBackendUrl
+  ? rawBackendUrl.replace(/\/+$/, '')
+  : import.meta.env.DEV
+  ? 'http://localhost:8080'
+  : '';
+
+const LIVEKIT_URL_OVERRIDE = (import.meta.env.VITE_LIVEKIT_URL || '').trim();
 
 /**
  * Request an ephemeral LiveKit room token from the Python backend service.
  */
 export async function fetchToken(language: 'en' | 'te' | 'hi' = 'en'): Promise<TokenResponse> {
-  const endpoint = `${BACKEND_URL}/api/token`;
+  const endpoint = BACKEND_URL ? `${BACKEND_URL}/api/token` : '/api/token';
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -75,7 +86,7 @@ export async function queryKnowledge(
   query: string,
   language: 'en' | 'te' | 'hi' = 'en'
 ): Promise<QueryResponse> {
-  const endpoint = `${BACKEND_URL}/api/query`;
+  const endpoint = BACKEND_URL ? `${BACKEND_URL}/api/query` : '/api/query';
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
