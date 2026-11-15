@@ -1,4 +1,9 @@
 
+# Dependencies
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+
 # dotenv secrets
 .env
 .env.local

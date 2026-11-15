@@ -1,0 +1,12 @@
+{
+  "name": "nexi-ntl",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEXi - Real-time Voice and Dual-RAG Campus Assistant for SRM University-AP",
+  "scripts": {
+    "build": "pnpm --dir frontend build",
+    "dev": "pnpm --dir frontend dev",
+    "preview": "pnpm --dir frontend preview",
+    "postinstall": "pnpm --dir frontend install"
+  }
+}
