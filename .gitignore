@@ -56,3 +56,11 @@ BACKEND_REVIEW.md
 KMS/
 session_data/
 .playwright-mcp/
+docs/ACCEPTANCE.md
+docs/GAP_MATRIX.md
+docs/HANDOFF.md
+docs/LIVE_ACCEPTANCE.md
+docs/PHASE_0_1.md
+docs/PROGRESS.md
+docs/DECISIONS.md
+requirements.cuda.lock.old
