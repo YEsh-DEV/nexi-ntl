@@ -15,8 +15,13 @@ import {
   Radio,
   Loader2,
 } from 'lucide-react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
 import { useLiveKit } from '../hooks/useLiveKit';
 import { queryKnowledge, Citation } from '../lib/api';
+
+gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 type Language = 'en' | 'te' | 'hi';
 
@@ -93,6 +98,8 @@ const POPULAR_QUESTIONS = [
 ];
 
 export const LiveSandbox: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const orbRef = useRef<HTMLButtonElement>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('en');
   const [inputMessage, setInputMessage] = useState<string>('');
   const [isSearchingText, setIsSearchingText] = useState<boolean>(false);
@@ -127,31 +134,92 @@ export const LiveSandbox: React.FC = () => {
     },
   });
 
-  // Effective agent state
   const isVoiceActive = voiceStatus === 'connected';
-  const effectiveAgentState: 'idle' | 'connecting' | 'listening' | 'processing' | 'speaking' | 'error' =
-    isSearchingText
-      ? 'processing'
-      : voiceStatus === 'connecting'
-      ? 'connecting'
-      : voiceStatus === 'error'
-      ? 'error'
-      : isVoiceActive
-      ? isAgentSpeaking
-        ? 'speaking'
-        : 'listening'
-      : 'idle';
+
+  // GSAP Animations: ScrollTrigger Entrance & Idle Breathing Pulse
+  useGSAP(
+    () => {
+      // 1. Background Blob Drift
+      gsap.to('.sandbox-blob-1', {
+        x: -30,
+        y: 35,
+        duration: 10,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+      gsap.to('.sandbox-blob-2', {
+        x: 35,
+        y: -25,
+        duration: 12,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        delay: 0.5,
+      });
+
+      // 2. Section ScrollTrigger Entrance
+      gsap.fromTo(
+        '.sandbox-header',
+        { opacity: 0, y: 35 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: '.sandbox-header',
+            start: 'top 85%',
+          },
+        }
+      );
+
+      gsap.fromTo(
+        '.sandbox-card-wrapper',
+        { opacity: 0, y: 50, scale: 0.98 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.9,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: '.sandbox-card-wrapper',
+            start: 'top 80%',
+          },
+        }
+      );
+    },
+    { scope: containerRef }
+  );
+
+  // Organic Idle Breathing Animation for the Central Voice Orb
+  useEffect(() => {
+    if (!orbRef.current) return;
+
+    if (voiceStatus === 'disconnected') {
+      const breathingTween = gsap.to(orbRef.current, {
+        scale: 1.04,
+        duration: 2.2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+      return () => {
+        breathingTween.kill();
+        if (orbRef.current) gsap.set(orbRef.current, { scale: 1 });
+      };
+    }
+  }, [voiceStatus]);
 
   // Auto-scroll chat to latest message
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, effectiveAgentState]);
+  }, [chatMessages, isSearchingText, voiceStatus]);
 
   // Voice Interaction Toggle
   const handleToggleVoice = () => {
-    if (voiceStatus === 'connected') {
-      disconnectVoice();
-    } else if (voiceStatus === 'connecting') {
+    if (voiceStatus === 'connected' || voiceStatus === 'connecting') {
       disconnectVoice();
     } else {
       connectVoice();
@@ -178,7 +246,6 @@ export const LiveSandbox: React.FC = () => {
     ]);
 
     try {
-      // Real API request to backend POST /api/query
       const result = await queryKnowledge(userText, selectedLanguage);
 
       const topCitation: Citation | undefined =
@@ -239,51 +306,71 @@ export const LiveSandbox: React.FC = () => {
   };
 
   return (
-    <section id="sandbox" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section
+      id="sandbox"
+      ref={containerRef}
+      className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden"
+    >
+      {/* Soft Ambient Blurred Gradient Background Blobs */}
+      <div
+        className="sandbox-blob-1 absolute w-[540px] h-[540px] -top-32 -right-28 rounded-full bg-gradient-to-tr from-purple-200/30 via-indigo-100/35 to-rose-100/25 filter blur-[130px] opacity-40 pointer-events-none -z-10"
+        aria-hidden="true"
+      />
+      <div
+        className="sandbox-blob-2 absolute w-[500px] h-[500px] -bottom-24 -left-20 rounded-full bg-gradient-to-bl from-emerald-200/30 via-teal-100/25 to-slate-200/30 filter blur-[125px] opacity-40 pointer-events-none -z-10"
+        aria-hidden="true"
+      />
+
       {/* Section Header */}
-      <div className="max-w-3xl mx-auto text-center mb-12">
-        <div className="inline-flex items-center space-x-2 bg-indigo-50 text-indigo-700 px-3.5 py-1 rounded-full text-xs font-semibold mb-4 border border-indigo-100">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+      <div className="sandbox-header max-w-3xl mx-auto text-center mb-16">
+        <div className="inline-flex items-center space-x-2 backdrop-blur-md bg-white/80 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-semibold mb-4 border border-indigo-100/80 shadow-xs">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
           <span>Interactive Campus Intelligence Sandbox</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
           Experience Live Voice & Grounded RAG
         </h2>
-        <p className="mt-3 text-slate-600 text-sm sm:text-base leading-relaxed">
+        <p className="mt-4 text-slate-600 text-base sm:text-lg leading-relaxed font-normal">
           Test real-time bi-directional WebRTC voice streaming, language switching, and verifiable policy citations as if you were speaking directly with NEXi.
         </p>
       </div>
 
-      {/* Main Sandbox Card */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+      {/* Main Sandbox Glassmorphic Card Container */}
+      <div className="sandbox-card-wrapper backdrop-blur-md bg-white/75 rounded-3xl border border-slate-200/70 shadow-2xl shadow-slate-200/50 overflow-hidden">
         {/* Top Control Bar */}
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-4">
+        <div className="px-6 py-4.5 border-b border-slate-200/60 bg-slate-50/60 backdrop-blur-sm flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
               <Languages className="w-4 h-4 text-indigo-600" />
               Language:
             </span>
-            <div className="inline-flex rounded-xl bg-slate-200/60 p-0.5 text-xs font-semibold">
+            <div className="inline-flex rounded-xl bg-slate-200/60 p-1 text-xs font-semibold">
               <button
                 onClick={() => setSelectedLanguage('en')}
-                className={`px-3 py-1 rounded-lg transition-all ${
-                  selectedLanguage === 'en' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3.5 py-1 rounded-lg transition-all ${
+                  selectedLanguage === 'en'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 English
               </button>
               <button
                 onClick={() => setSelectedLanguage('te')}
-                className={`px-3 py-1 rounded-lg transition-all ${
-                  selectedLanguage === 'te' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3.5 py-1 rounded-lg transition-all ${
+                  selectedLanguage === 'te'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 తెలుగు (TE)
               </button>
               <button
                 onClick={() => setSelectedLanguage('hi')}
-                className={`px-3 py-1 rounded-lg transition-all ${
-                  selectedLanguage === 'hi' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3.5 py-1 rounded-lg transition-all ${
+                  selectedLanguage === 'hi'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 हिन्दी (HI)
@@ -294,9 +381,9 @@ export const LiveSandbox: React.FC = () => {
           <div className="flex items-center space-x-3 text-xs">
             <button
               onClick={() => setShowCitationDrawer(!showCitationDrawer)}
-              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border transition-colors ${
+              className={`inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl border transition-all ${
                 showCitationDrawer
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-medium'
+                  ? 'bg-indigo-50 border-indigo-200/80 text-indigo-700 font-semibold shadow-xs'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -305,7 +392,7 @@ export const LiveSandbox: React.FC = () => {
             </button>
             <button
               onClick={handleResetConversation}
-              className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors"
+              className="inline-flex items-center space-x-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors shadow-xs"
               title="Reset conversation"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -315,9 +402,9 @@ export const LiveSandbox: React.FC = () => {
         </div>
 
         {/* Split-Screen Interactive Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[540px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[560px]">
           {/* Left Panel: Voice Orb & Interactive State Controls */}
-          <div className="lg:col-span-5 p-8 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col justify-between items-center text-center bg-gradient-to-b from-slate-50/50 via-white to-slate-50/30">
+          <div className="lg:col-span-5 p-8 sm:p-10 border-b lg:border-b-0 lg:border-r border-slate-200/60 flex flex-col justify-between items-center text-center bg-gradient-to-b from-slate-50/40 via-white/40 to-slate-50/20 backdrop-blur-sm">
             {/* Connection Status Badge */}
             <div className="w-full flex items-center justify-between text-xs text-slate-500">
               <span className="font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -325,18 +412,18 @@ export const LiveSandbox: React.FC = () => {
                 LiveKit WebRTC
               </span>
               <span
-                className={`font-medium px-2.5 py-0.5 rounded-full text-[11px] flex items-center gap-1 ${
+                className={`font-medium px-3 py-1 rounded-full text-[11px] flex items-center gap-1.5 backdrop-blur-sm transition-all ${
                   voiceStatus === 'connected'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-xs'
                     : voiceStatus === 'connecting'
-                    ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200/80 animate-pulse'
                     : voiceStatus === 'error'
-                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                    : 'bg-slate-100 text-slate-600'
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200/80'
+                    : 'bg-slate-100/90 text-slate-600 border border-slate-200/60'
                 }`}
               >
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${
+                  className={`w-2 h-2 rounded-full ${
                     voiceStatus === 'connected'
                       ? 'bg-emerald-500'
                       : voiceStatus === 'connecting'
@@ -357,63 +444,67 @@ export const LiveSandbox: React.FC = () => {
             </div>
 
             {/* Central Animated Voice Orb */}
-            <div className="my-8 relative flex items-center justify-center">
-              {/* Outer Glow & Radar Rings reacting to real WebRTC audio level */}
+            <div className="my-10 relative flex items-center justify-center">
+              {/* Dynamic Wave-Ripple Rings Reacting to Real WebRTC Audio Level */}
               {voiceStatus === 'connected' && (
                 <>
                   <div
-                    className="absolute w-48 h-48 rounded-full bg-indigo-200/50 transition-transform duration-75 pointer-events-none"
+                    className="absolute w-52 h-52 rounded-full bg-indigo-300/30 transition-transform duration-75 pointer-events-none"
                     style={{
-                      transform: `scale(${1 + audioLevel * 0.5})`,
+                      transform: `scale(${1 + audioLevel * 0.55})`,
                       opacity: 0.35 + audioLevel * 0.55,
                     }}
                   />
                   <div
-                    className="absolute w-40 h-40 rounded-full bg-indigo-300/40 transition-transform duration-75 pointer-events-none"
+                    className="absolute w-42 h-42 rounded-full bg-indigo-400/25 transition-transform duration-75 pointer-events-none"
                     style={{
-                      transform: `scale(${1 + audioLevel * 0.3})`,
+                      transform: `scale(${1 + audioLevel * 0.35})`,
                       opacity: 0.45 + audioLevel * 0.45,
                     }}
                   />
+                  {isAgentSpeaking && (
+                    <div className="absolute w-60 h-60 rounded-full bg-emerald-200/40 animate-ping opacity-35 pointer-events-none" />
+                  )}
                 </>
               )}
 
               {voiceStatus === 'connecting' && (
-                <div className="absolute w-44 h-44 rounded-full border-2 border-indigo-400 border-dashed animate-spin pointer-events-none opacity-60" />
+                <div className="absolute w-48 h-48 rounded-full border-2 border-indigo-400 border-dashed animate-spin pointer-events-none opacity-60" />
               )}
 
               {/* Main Voice Orb Button */}
               <button
+                ref={orbRef}
                 onClick={handleToggleVoice}
-                className={`relative z-10 w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
+                className={`relative z-10 w-36 h-36 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-2xl cursor-pointer ${
                   voiceStatus === 'connected'
                     ? isMuted
-                      ? 'bg-slate-700 text-white ring-4 ring-slate-200'
-                      : 'bg-indigo-600 text-white scale-105 ring-4 ring-indigo-200'
+                      ? 'bg-slate-700 text-white ring-4 ring-slate-300'
+                      : 'bg-gradient-to-tr from-indigo-700 via-indigo-600 to-indigo-500 text-white scale-105 ring-4 ring-indigo-200/80 shadow-indigo-300/60'
                     : voiceStatus === 'connecting'
-                    ? 'bg-amber-600 text-white animate-pulse'
+                    ? 'bg-gradient-to-tr from-amber-600 to-amber-500 text-white animate-pulse'
                     : voiceStatus === 'error'
-                    ? 'bg-rose-600 text-white ring-4 ring-rose-200'
-                    : 'bg-slate-900 hover:bg-slate-800 text-white hover:scale-102'
+                    ? 'bg-gradient-to-tr from-rose-600 to-rose-500 text-white ring-4 ring-rose-200'
+                    : 'bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 text-white hover:scale-103 shadow-slate-900/40'
                 }`}
                 aria-label="Toggle voice assistant"
               >
                 {voiceStatus === 'connecting' ? (
-                  <Loader2 className="w-9 h-9 text-white animate-spin" />
+                  <Loader2 className="w-10 h-10 text-white animate-spin" />
                 ) : voiceStatus === 'connected' ? (
                   isMuted ? (
-                    <MicOff className="w-9 h-9 text-rose-300" />
+                    <MicOff className="w-10 h-10 text-rose-300" />
                   ) : isAgentSpeaking ? (
-                    <Volume2 className="w-9 h-9 text-emerald-300 animate-pulse" />
+                    <Volume2 className="w-10 h-10 text-emerald-300 animate-pulse" />
                   ) : (
-                    <Mic className="w-9 h-9 text-white animate-bounce" />
+                    <Mic className="w-10 h-10 text-white animate-bounce" />
                   )
                 ) : voiceStatus === 'error' ? (
-                  <AlertCircle className="w-9 h-9 text-white" />
+                  <AlertCircle className="w-10 h-10 text-white" />
                 ) : (
-                  <Mic className="w-9 h-9 text-white" />
+                  <Mic className="w-10 h-10 text-white" />
                 )}
-                <span className="text-[11px] uppercase font-bold tracking-wider mt-1.5 opacity-90">
+                <span className="text-[11px] uppercase font-bold tracking-wider mt-2 opacity-95">
                   {voiceStatus === 'connected'
                     ? isMuted
                       ? 'Muted'
@@ -431,38 +522,38 @@ export const LiveSandbox: React.FC = () => {
 
             {/* Mic Mute & Controls when Connected */}
             {voiceStatus === 'connected' && (
-              <div className="flex items-center space-x-2 mb-2">
+              <div className="flex items-center space-x-2.5 mb-2">
                 <button
                   onClick={toggleMute}
-                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                  className={`inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs ${
                     isMuted
                       ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  <span>{isMuted ? 'Unmute Microphone' : 'Mute Microphone'}</span>
+                  <span>{isMuted ? 'Unmute Mic' : 'Mute Mic'}</span>
                 </button>
                 <button
                   onClick={disconnectVoice}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition shadow-xs"
+                  className="px-4 py-1.5 rounded-full text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-all shadow-sm"
                 >
-                  End Call
+                  End Session
                 </button>
               </div>
             )}
 
             {/* Error Feedback Banner */}
             {voiceError && (
-              <div className="w-full mb-3 p-2 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left flex items-start space-x-1.5">
+              <div className="w-full mb-3 p-3 bg-rose-50/90 border border-rose-200 rounded-2xl text-rose-700 text-xs text-left flex items-start space-x-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
-                <span className="text-[11px] leading-tight">{voiceError}</span>
+                <span className="text-[11px] leading-tight font-medium">{voiceError}</span>
               </div>
             )}
 
-            {/* Quick Helper Subtext & Instructions */}
+            {/* Subtext Instructions */}
             <div className="w-full">
-              <p className="text-xs text-slate-500 mb-4">
+              <p className="text-xs text-slate-500 mb-4 font-normal">
                 {voiceStatus === 'disconnected' && 'Click the microphone to start a live voice session or pick a question below.'}
                 {voiceStatus === 'connecting' && 'Negotiating SDP & ICE candidates with LiveKit room...'}
                 {voiceStatus === 'connected' &&
@@ -478,7 +569,7 @@ export const LiveSandbox: React.FC = () => {
                   <button
                     key={q.id}
                     onClick={() => handleSelectChip(q)}
-                    className="text-[11px] font-medium bg-white hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors"
+                    className="text-[11px] font-medium backdrop-blur-md bg-white/80 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 px-3 py-1 rounded-xl border border-slate-200/80 transition-all shadow-xs"
                   >
                     {q.category}
                   </button>
@@ -488,21 +579,21 @@ export const LiveSandbox: React.FC = () => {
           </div>
 
           {/* Right Panel: Transcript Feed & Document Drawer */}
-          <div className="lg:col-span-7 flex flex-col justify-between h-[540px] bg-white">
+          <div className="lg:col-span-7 flex flex-col justify-between h-[560px] bg-white/70 backdrop-blur-md">
             {/* Transcript Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-4.5 border-b border-slate-200/60 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-indigo-600" />
                 Live Transcript & Citations
               </span>
-              <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {voiceStatus === 'connected' ? 'Active WebRTC Session' : 'Zero-Hallucination Dual RAG'}
+              <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50/90 px-3 py-1 rounded-full border border-emerald-200/70 shadow-xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                {isVoiceActive ? 'Active WebRTC Session' : 'Zero-Hallucination Dual RAG'}
               </span>
             </div>
 
             {/* Messages Scroll Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 pr-3">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4.5 pr-3">
               {chatMessages.map((msg) => (
                 <div
                   key={msg.id}
@@ -516,10 +607,10 @@ export const LiveSandbox: React.FC = () => {
                   </div>
 
                   <div
-                    className={`max-w-[90%] p-4 rounded-2xl text-sm leading-relaxed shadow-xs ${
+                    className={`max-w-[88%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
                       msg.sender === 'user'
-                        ? 'bg-indigo-600 text-white rounded-br-none'
-                        : 'bg-slate-50 border border-slate-200/80 text-slate-800 rounded-bl-none'
+                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-br-none'
+                        : 'backdrop-blur-md bg-white/90 border border-slate-200/80 text-slate-800 rounded-bl-none'
                     }`}
                   >
                     {msg.text}
@@ -546,7 +637,7 @@ export const LiveSandbox: React.FC = () => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">
                     NEXi Searching Ordinances...
                   </span>
-                  <div className="p-3.5 rounded-2xl bg-slate-100 rounded-bl-none flex items-center space-x-2 text-xs text-slate-500">
+                  <div className="p-3.5 rounded-2xl backdrop-blur-md bg-white/90 border border-slate-200/80 rounded-bl-none flex items-center space-x-2 text-xs text-slate-500 shadow-xs">
                     <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
                     <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse delay-150"></span>
                     <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse delay-300"></span>
@@ -558,15 +649,15 @@ export const LiveSandbox: React.FC = () => {
               <div ref={transcriptEndRef} />
             </div>
 
-            {/* Document Context Drawer (Collapsible) */}
+            {/* Document Context Drawer (Collapsible with Glassmorphism) */}
             {showCitationDrawer && activeCitation && (
-              <div className="mx-4 mb-2 p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs">
-                <div className="flex items-center justify-between font-semibold text-indigo-900 mb-1">
+              <div className="mx-4 mb-2 p-4 rounded-2xl backdrop-blur-md bg-indigo-50/80 border border-indigo-100/90 text-xs shadow-xs">
+                <div className="flex items-center justify-between font-semibold text-indigo-950 mb-1">
                   <div className="flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Live Document Context:</span>
                   </div>
-                  <span className="text-[10px] bg-indigo-100 text-indigo-700 font-mono px-1.5 py-0.5 rounded font-bold">
+                  <span className="text-[10px] bg-white/80 text-indigo-700 font-mono px-2 py-0.5 rounded-md font-bold border border-indigo-100">
                     Confidence: {(activeCitation.relevanceScore * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -581,18 +672,18 @@ export const LiveSandbox: React.FC = () => {
             )}
 
             {/* Text Input Fallback Bar */}
-            <form onSubmit={handleSendText} className="p-4 border-t border-slate-100 flex items-center space-x-2 bg-slate-50/40">
+            <form onSubmit={handleSendText} className="p-4 border-t border-slate-200/60 flex items-center space-x-2 bg-slate-50/50 backdrop-blur-sm">
               <input
                 type="text"
                 placeholder="Ask about attendance condonation, hostel curfew, exam policy..."
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs"
+                className="flex-1 bg-white/90 border border-slate-200/80 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-xs"
               />
               <button
                 type="submit"
                 disabled={!inputMessage.trim() || isSearchingText}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white p-2.5 rounded-xl transition shadow-xs flex items-center justify-center cursor-pointer"
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white p-2.5 rounded-xl transition-all shadow-xs flex items-center justify-center cursor-pointer"
                 aria-label="Send query"
               >
                 <Send className="w-4 h-4" />
