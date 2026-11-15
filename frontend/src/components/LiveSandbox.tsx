@@ -11,17 +11,14 @@ import {
   Sparkles,
   Languages,
   ShieldCheck,
+  AlertCircle,
+  Radio,
+  Loader2,
 } from 'lucide-react';
+import { useLiveKit } from '../hooks/useLiveKit';
+import { queryKnowledge, Citation } from '../lib/api';
 
-type AgentState = 'idle' | 'listening' | 'processing' | 'speaking';
 type Language = 'en' | 'te' | 'hi';
-
-interface Citation {
-  document: string;
-  section: string;
-  relevanceScore: number;
-  excerpt: string;
-}
 
 interface ChatMessage {
   id: string;
@@ -96,16 +93,16 @@ const POPULAR_QUESTIONS = [
 ];
 
 export const LiveSandbox: React.FC = () => {
-  const [agentState, setAgentState] = useState<AgentState>('idle');
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('en');
   const [inputMessage, setInputMessage] = useState<string>('');
+  const [isSearchingText, setIsSearchingText] = useState<boolean>(false);
   const [activeCitation, setActiveCitation] = useState<Citation | null>(POPULAR_QUESTIONS[0].citation);
   const [showCitationDrawer, setShowCitationDrawer] = useState<boolean>(true);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       sender: 'nexi',
-      text: "Hello! I am NEXi, your SRM University-AP campus assistant. You can speak or type in English, Telugu, or Hindi. Ask me about attendance condonation, hostel curfews, exam malpractice rules, or research funding.",
+      text: "Hello! I am NEXi, your SRM University-AP campus intelligence assistant. You can speak directly via WebRTC or query our verified policy database in English, Telugu, or Hindi.",
       timestamp: 'Just now',
       citation: POPULAR_QUESTIONS[0].citation,
     },
@@ -113,121 +110,124 @@ export const LiveSandbox: React.FC = () => {
 
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
+  // LiveKit WebRTC Voice Hook
+  const {
+    status: voiceStatus,
+    isMuted,
+    audioLevel,
+    isAgentSpeaking,
+    errorMessage: voiceError,
+    connect: connectVoice,
+    disconnect: disconnectVoice,
+    toggleMute,
+  } = useLiveKit({
+    language: selectedLanguage,
+    onError: (err) => {
+      console.warn('LiveKit voice session error:', err);
+    },
+  });
+
+  // Effective agent state
+  const isVoiceActive = voiceStatus === 'connected';
+  const effectiveAgentState: 'idle' | 'connecting' | 'listening' | 'processing' | 'speaking' | 'error' =
+    isSearchingText
+      ? 'processing'
+      : voiceStatus === 'connecting'
+      ? 'connecting'
+      : voiceStatus === 'error'
+      ? 'error'
+      : isVoiceActive
+      ? isAgentSpeaking
+        ? 'speaking'
+        : 'listening'
+      : 'idle';
+
   // Auto-scroll chat to latest message
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, agentState]);
+  }, [chatMessages, effectiveAgentState]);
 
-  // Voice Interaction Simulation
-  const toggleListening = () => {
-    if (agentState === 'idle') {
-      setAgentState('listening');
-
-      // Simulate Speech Turn: Listening -> Processing -> Speaking
-      setTimeout(() => {
-        setAgentState('processing');
-
-        setTimeout(() => {
-          setAgentState('speaking');
-          const sample = POPULAR_QUESTIONS[0];
-          setActiveCitation(sample.citation);
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              sender: 'user',
-              text: sample.question,
-              timestamp: 'Just now',
-            },
-            {
-              id: (Date.now() + 1).toString(),
-              sender: 'nexi',
-              text: sample.answer,
-              timestamp: 'Just now',
-              citation: sample.citation,
-            },
-          ]);
-
-          // Return to idle after speech finishes
-          setTimeout(() => {
-            setAgentState('idle');
-          }, 3500);
-        }, 1200);
-      }, 2500);
+  // Voice Interaction Toggle
+  const handleToggleVoice = () => {
+    if (voiceStatus === 'connected') {
+      disconnectVoice();
+    } else if (voiceStatus === 'connecting') {
+      disconnectVoice();
     } else {
-      setAgentState('idle');
+      connectVoice();
     }
   };
 
-  // Text Query Submission
-  const handleSendText = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
+  // Text Query Submission with Real Backend RAG API Wiring
+  const executeQuery = async (queryText: string) => {
+    if (!queryText.trim() || isSearchingText) return;
 
-    const userText = inputMessage;
+    const userText = queryText.trim();
     setInputMessage('');
-    setAgentState('processing');
+    setIsSearchingText(true);
 
+    const userMsgId = Date.now().toString();
     setChatMessages((prev) => [
       ...prev,
       {
-        id: Date.now().toString(),
+        id: userMsgId,
         sender: 'user',
         text: userText,
         timestamp: 'Just now',
       },
     ]);
 
-    // Check if input matches known topics or generate grounded fallback
-    setTimeout(() => {
-      setAgentState('speaking');
+    try {
+      // Real API request to backend POST /api/query
+      const result = await queryKnowledge(userText, selectedLanguage);
 
-      let replyText = `According to verified SRM University-AP policy records, queries regarding "${userText}" require consulting the academic handbook or contacting the department administrative office.`;
-      let citationData: Citation = {
-        document: 'SRM AP Academic Guidelines 2024–2025',
-        section: 'General Provisions & Circulars',
-        relevanceScore: 0.912,
-        excerpt:
-          'For unlisted or discretionary procedures, students must reference the student handbook or email the dean of academics office.',
-      };
+      const topCitation: Citation | undefined =
+        result.citations && result.citations.length > 0 ? result.citations[0] : undefined;
 
-      const matchedQuestion = POPULAR_QUESTIONS.find((q) =>
-        userText.toLowerCase().includes(q.category.toLowerCase())
-      );
-
-      if (matchedQuestion) {
-        replyText = matchedQuestion.answer;
-        citationData = matchedQuestion.citation;
+      if (topCitation) {
+        setActiveCitation(topCitation);
       }
-
-      setActiveCitation(citationData);
 
       setChatMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender: 'nexi',
-          text: replyText,
+          text: result.answer,
           timestamp: 'Just now',
-          citation: citationData,
+          citation: topCitation,
         },
       ]);
+    } catch (err: unknown) {
+      const errString = err instanceof Error ? err.message : String(err);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          sender: 'nexi',
+          text: `Unable to retrieve university policy records: ${errString}. Please verify backend status.`,
+          timestamp: 'Just now',
+        },
+      ]);
+    } finally {
+      setIsSearchingText(false);
+    }
+  };
 
-      setTimeout(() => {
-        setAgentState('idle');
-      }, 3000);
-    }, 1100);
+  const handleSendText = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeQuery(inputMessage);
   };
 
   // Trigger from sample chip
   const handleSelectChip = (q: typeof POPULAR_QUESTIONS[0]) => {
     setInputMessage(q.question);
-    setActiveCitation(q.citation);
+    executeQuery(q.question);
   };
 
   // Reset conversation
   const handleResetConversation = () => {
-    setAgentState('idle');
+    disconnectVoice();
     setChatMessages([
       {
         id: Date.now().toString(),
@@ -250,7 +250,7 @@ export const LiveSandbox: React.FC = () => {
           Experience Live Voice & Grounded RAG
         </h2>
         <p className="mt-3 text-slate-600 text-sm sm:text-base leading-relaxed">
-          Test real-time interruption, language switching, and verifiable policy citations as if you were speaking directly with NEXi.
+          Test real-time bi-directional WebRTC voice streaming, language switching, and verifiable policy citations as if you were speaking directly with NEXi.
         </p>
       </div>
 
@@ -315,85 +315,161 @@ export const LiveSandbox: React.FC = () => {
         </div>
 
         {/* Split-Screen Interactive Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[520px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[540px]">
           {/* Left Panel: Voice Orb & Interactive State Controls */}
           <div className="lg:col-span-5 p-8 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col justify-between items-center text-center bg-gradient-to-b from-slate-50/50 via-white to-slate-50/30">
+            {/* Connection Status Badge */}
             <div className="w-full flex items-center justify-between text-xs text-slate-500">
-              <span className="font-semibold uppercase tracking-wider text-[11px]">Voice Interface</span>
+              <span className="font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <Radio className="w-3.5 h-3.5 text-indigo-600" />
+                LiveKit WebRTC
+              </span>
               <span
-                className={`font-medium px-2 py-0.5 rounded-full text-[11px] ${
-                  agentState === 'idle'
-                    ? 'bg-slate-100 text-slate-600'
-                    : agentState === 'listening'
-                    ? 'bg-indigo-50 text-indigo-600 border border-indigo-100 animate-pulse'
-                    : agentState === 'processing'
-                    ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                    : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                className={`font-medium px-2.5 py-0.5 rounded-full text-[11px] flex items-center gap-1 ${
+                  voiceStatus === 'connected'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : voiceStatus === 'connecting'
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                    : voiceStatus === 'error'
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                    : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                ● {agentState.toUpperCase()}
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    voiceStatus === 'connected'
+                      ? 'bg-emerald-500'
+                      : voiceStatus === 'connecting'
+                      ? 'bg-amber-500'
+                      : voiceStatus === 'error'
+                      ? 'bg-rose-500'
+                      : 'bg-slate-400'
+                  }`}
+                />
+                {voiceStatus === 'connected'
+                  ? 'Connected'
+                  : voiceStatus === 'connecting'
+                  ? 'Connecting...'
+                  : voiceStatus === 'error'
+                  ? 'Connection Error'
+                  : 'Ready to Connect'}
               </span>
             </div>
 
             {/* Central Animated Voice Orb */}
-            <div className="my-10 relative flex items-center justify-center">
-              {/* Outer Glow & Radar Rings */}
-              {agentState === 'listening' && (
+            <div className="my-8 relative flex items-center justify-center">
+              {/* Outer Glow & Radar Rings reacting to real WebRTC audio level */}
+              {voiceStatus === 'connected' && (
                 <>
-                  <div className="absolute w-52 h-52 rounded-full bg-indigo-100 animate-ping opacity-60 pointer-events-none" />
-                  <div className="absolute w-40 h-40 rounded-full bg-indigo-200/50 animate-pulse pointer-events-none" />
+                  <div
+                    className="absolute w-48 h-48 rounded-full bg-indigo-200/50 transition-transform duration-75 pointer-events-none"
+                    style={{
+                      transform: `scale(${1 + audioLevel * 0.5})`,
+                      opacity: 0.35 + audioLevel * 0.55,
+                    }}
+                  />
+                  <div
+                    className="absolute w-40 h-40 rounded-full bg-indigo-300/40 transition-transform duration-75 pointer-events-none"
+                    style={{
+                      transform: `scale(${1 + audioLevel * 0.3})`,
+                      opacity: 0.45 + audioLevel * 0.45,
+                    }}
+                  />
                 </>
               )}
-              {agentState === 'speaking' && (
-                <>
-                  <div className="absolute w-56 h-56 rounded-full bg-emerald-100 animate-pulse opacity-75 pointer-events-none" />
-                  <div className="absolute w-44 h-44 rounded-full bg-emerald-200/50 animate-ping opacity-40 pointer-events-none" />
-                </>
-              )}
-              {agentState === 'processing' && (
+
+              {voiceStatus === 'connecting' && (
                 <div className="absolute w-44 h-44 rounded-full border-2 border-indigo-400 border-dashed animate-spin pointer-events-none opacity-60" />
               )}
 
-              {/* Main Microphone Button */}
+              {/* Main Voice Orb Button */}
               <button
-                onClick={toggleListening}
+                onClick={handleToggleVoice}
                 className={`relative z-10 w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-xl cursor-pointer ${
-                  agentState === 'listening'
-                    ? 'bg-indigo-600 text-white scale-105 ring-4 ring-indigo-200'
-                    : agentState === 'speaking'
-                    ? 'bg-emerald-600 text-white scale-105 ring-4 ring-emerald-200'
-                    : agentState === 'processing'
+                  voiceStatus === 'connected'
+                    ? isMuted
+                      ? 'bg-slate-700 text-white ring-4 ring-slate-200'
+                      : 'bg-indigo-600 text-white scale-105 ring-4 ring-indigo-200'
+                    : voiceStatus === 'connecting'
                     ? 'bg-amber-600 text-white animate-pulse'
+                    : voiceStatus === 'error'
+                    ? 'bg-rose-600 text-white ring-4 ring-rose-200'
                     : 'bg-slate-900 hover:bg-slate-800 text-white hover:scale-102'
                 }`}
                 aria-label="Toggle voice assistant"
               >
-                {agentState === 'listening' ? (
-                  <MicOff className="w-9 h-9 animate-bounce text-white" />
-                ) : agentState === 'speaking' ? (
-                  <Volume2 className="w-9 h-9 text-white animate-pulse" />
+                {voiceStatus === 'connecting' ? (
+                  <Loader2 className="w-9 h-9 text-white animate-spin" />
+                ) : voiceStatus === 'connected' ? (
+                  isMuted ? (
+                    <MicOff className="w-9 h-9 text-rose-300" />
+                  ) : isAgentSpeaking ? (
+                    <Volume2 className="w-9 h-9 text-emerald-300 animate-pulse" />
+                  ) : (
+                    <Mic className="w-9 h-9 text-white animate-bounce" />
+                  )
+                ) : voiceStatus === 'error' ? (
+                  <AlertCircle className="w-9 h-9 text-white" />
                 ) : (
                   <Mic className="w-9 h-9 text-white" />
                 )}
                 <span className="text-[11px] uppercase font-bold tracking-wider mt-1.5 opacity-90">
-                  {agentState === 'idle'
-                    ? 'Tap to Speak'
-                    : agentState === 'listening'
-                    ? 'Listening...'
-                    : agentState === 'processing'
-                    ? 'Searching...'
-                    : 'Speaking...'}
+                  {voiceStatus === 'connected'
+                    ? isMuted
+                      ? 'Muted'
+                      : isAgentSpeaking
+                      ? 'Speaking...'
+                      : 'Listening...'
+                    : voiceStatus === 'connecting'
+                    ? 'Connecting...'
+                    : voiceStatus === 'error'
+                    ? 'Retry Voice'
+                    : 'Tap to Speak'}
                 </span>
               </button>
             </div>
 
+            {/* Mic Mute & Controls when Connected */}
+            {voiceStatus === 'connected' && (
+              <div className="flex items-center space-x-2 mb-2">
+                <button
+                  onClick={toggleMute}
+                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                    isMuted
+                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                  <span>{isMuted ? 'Unmute Microphone' : 'Mute Microphone'}</span>
+                </button>
+                <button
+                  onClick={disconnectVoice}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition shadow-xs"
+                >
+                  End Call
+                </button>
+              </div>
+            )}
+
+            {/* Error Feedback Banner */}
+            {voiceError && (
+              <div className="w-full mb-3 p-2 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left flex items-start space-x-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
+                <span className="text-[11px] leading-tight">{voiceError}</span>
+              </div>
+            )}
+
             {/* Quick Helper Subtext & Instructions */}
             <div className="w-full">
               <p className="text-xs text-slate-500 mb-4">
-                {agentState === 'idle' && 'Click the microphone or choose a sample question below.'}
-                {agentState === 'listening' && 'Listening to your microphone... Speak clearly.'}
-                {agentState === 'processing' && 'Checking BM25 and vector index for matching campus ordinances...'}
-                {agentState === 'speaking' && 'Streaming neural audio via Sarvam AI. Click to interrupt.'}
+                {voiceStatus === 'disconnected' && 'Click the microphone to start a live voice session or pick a question below.'}
+                {voiceStatus === 'connecting' && 'Negotiating SDP & ICE candidates with LiveKit room...'}
+                {voiceStatus === 'connected' &&
+                  (isAgentSpeaking
+                    ? 'Streaming neural audio from Sarvam Bulbul TTS.'
+                    : 'Listening to your microphone with WebRTC noise cancellation.')}
+                {voiceStatus === 'error' && 'Could not reach LiveKit room. Check server credentials or use text search below.'}
               </p>
 
               {/* Sample Topic Chips */}
@@ -420,7 +496,8 @@ export const LiveSandbox: React.FC = () => {
                 Live Transcript & Citations
               </span>
               <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Full-Duplex WebRTC
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {voiceStatus === 'connected' ? 'Active WebRTC Session' : 'Zero-Hallucination Dual RAG'}
               </span>
             </div>
 
@@ -454,8 +531,8 @@ export const LiveSandbox: React.FC = () => {
                           <ShieldCheck className="w-3.5 h-3.5" />
                           Grounded in {msg.citation.document.split(' ')[0]} Policy
                         </span>
-                        <span className="font-mono text-slate-400 text-[10px]">
-                          Conf: {(msg.citation.relevanceScore * 100).toFixed(1)}%
+                        <span className="font-mono text-slate-500 text-[10px] font-semibold">
+                          Score: {(msg.citation.relevanceScore * 100).toFixed(1)}%
                         </span>
                       </div>
                     )}
@@ -464,7 +541,7 @@ export const LiveSandbox: React.FC = () => {
               ))}
 
               {/* Processing Typing Bubble */}
-              {agentState === 'processing' && (
+              {isSearchingText && (
                 <div className="flex flex-col items-start animate-fade-in">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">
                     NEXi Searching Ordinances...
@@ -473,7 +550,7 @@ export const LiveSandbox: React.FC = () => {
                     <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
                     <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse delay-150"></span>
                     <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse delay-300"></span>
-                    <span className="text-slate-600 font-medium ml-1">Reranking policy chunks...</span>
+                    <span className="text-slate-600 font-medium ml-1">Reranking policy chunks against Chroma DB...</span>
                   </div>
                 </div>
               )}
@@ -487,14 +564,15 @@ export const LiveSandbox: React.FC = () => {
                 <div className="flex items-center justify-between font-semibold text-indigo-900 mb-1">
                   <div className="flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Active Document Reference:</span>
+                    <span>Live Document Context:</span>
                   </div>
-                  <span className="text-[10px] bg-indigo-100 text-indigo-700 font-mono px-1.5 py-0.5 rounded">
-                    Relevance: {(activeCitation.relevanceScore * 100).toFixed(1)}%
+                  <span className="text-[10px] bg-indigo-100 text-indigo-700 font-mono px-1.5 py-0.5 rounded font-bold">
+                    Confidence: {(activeCitation.relevanceScore * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="font-medium text-slate-800 text-[11px] mb-1">
-                  {activeCitation.document} — <span className="text-indigo-600">{activeCitation.section}</span>
+                  <span className="text-slate-900 font-semibold">{activeCitation.document}</span> —{' '}
+                  <span className="text-indigo-600">{activeCitation.section}</span>
                 </div>
                 <p className="text-slate-600 italic text-[11px] line-clamp-2 leading-relaxed">
                   "{activeCitation.excerpt}"
@@ -513,7 +591,7 @@ export const LiveSandbox: React.FC = () => {
               />
               <button
                 type="submit"
-                disabled={!inputMessage.trim()}
+                disabled={!inputMessage.trim() || isSearchingText}
                 className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white p-2.5 rounded-xl transition shadow-xs flex items-center justify-center cursor-pointer"
                 aria-label="Send query"
               >
