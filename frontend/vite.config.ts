@@ -15,6 +15,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           livekit: ['livekit-client'],
+          gsap: ['gsap', '@gsap/react'],
         },
       },
     },
