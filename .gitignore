@@ -65,3 +65,4 @@ docs/PROGRESS.md
 docs/DECISIONS.md
 docs/requirements.pre-phase0.txt
 requirements.cuda.lock.old
+.local-trash/
