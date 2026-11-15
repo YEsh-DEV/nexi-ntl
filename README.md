@@ -289,7 +289,7 @@ Core environment variables are configured in `.env` (refer to `.env.example`). K
 |---|---|---|---|
 | `ADMISSION_FAIL_OPEN` | Allow token issuance when LiveKit capacity check fails (dev only) | `false` | No |
 | `AGENT_NAME` | Named dispatch agent identifier matching SIP rules and tokens | `nexi` | Yes |
-| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origin URLs | `http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,http://127.0.0.1:3000` | No |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origin URLs | `http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173` | No |
 | `ALLOW_AUTO_DISPATCH` | Allow running without named dispatch (development only) | `0` | No |
 | `ALLOW_UNTESTED_PROVIDER_VERSIONS` | Bypass provider plugin version check (development only) | `0` | No |
 | `ALLOW_UNVERIFIED_KNOWLEDGE` | Allow loading unverified knowledge index (development only) | `0` | No |
