@@ -4,33 +4,22 @@ import {
   RoomEvent,
   Track,
   ConnectionState,
-  RemoteTrack,
-  RemoteTrackPublication,
-  RemoteParticipant,
 } from 'livekit-client';
 import { fetchToken } from '../lib/api';
 
-export type VoiceConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export function useLiveKit({ language = 'en', onError, onStatusChange } = {}) {
+  const [status, setStatus] = useState('disconnected');
+  const [isMuted, setIsMuted] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
-export interface UseLiveKitOptions {
-  language: 'en' | 'te' | 'hi';
-  onError?: (err: Error) => void;
-  onStatusChange?: (status: VoiceConnectionStatus) => void;
-}
-
-export function useLiveKit({ language, onError, onStatusChange }: UseLiveKitOptions) {
-  const [status, setStatus] = useState<VoiceConnectionStatus>('disconnected');
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [audioLevel, setAudioLevel] = useState<number>(0);
-  const [isAgentSpeaking, setIsAgentSpeaking] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const roomRef = useRef<Room | null>(null);
-  const attachedAudioElementsRef = useRef<HTMLMediaElement[]>([]);
-  const animFrameRef = useRef<number | null>(null);
+  const roomRef = useRef(null);
+  const attachedAudioElementsRef = useRef([]);
+  const animFrameRef = useRef(null);
 
   const updateStatus = useCallback(
-    (newStatus: VoiceConnectionStatus) => {
+    (newStatus) => {
       setStatus(newStatus);
       onStatusChange?.(newStatus);
     },
@@ -97,17 +86,14 @@ export function useLiveKit({ language, onError, onStatusChange }: UseLiveKitOpti
       roomRef.current = room;
 
       // 3. Register Event Listeners
-      room.on(
-        RoomEvent.TrackSubscribed,
-        (track: RemoteTrack, _pub: RemoteTrackPublication, _participant: RemoteParticipant) => {
-          if (track.kind === Track.Kind.Audio) {
-            const element = track.attach();
-            attachedAudioElementsRef.current.push(element);
-          }
+      room.on(RoomEvent.TrackSubscribed, (track) => {
+        if (track.kind === Track.Kind.Audio) {
+          const element = track.attach();
+          attachedAudioElementsRef.current.push(element);
         }
-      );
+      });
 
-      room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+      room.on(RoomEvent.TrackUnsubscribed, (track) => {
         const detached = track.detach();
         detached.forEach((el) => el.remove());
         attachedAudioElementsRef.current = attachedAudioElementsRef.current.filter(
@@ -117,10 +103,10 @@ export function useLiveKit({ language, onError, onStatusChange }: UseLiveKitOpti
 
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
         const remoteSpeaker = speakers.find((s) => !s.isLocal);
-        setIsAgentSpeaking(!!remoteSpeaker && remoteSpeaker.isSpeaking);
+        setIsAgentSpeaking(Boolean(remoteSpeaker && remoteSpeaker.isSpeaking));
       });
 
-      room.on(RoomEvent.ConnectionStateChanged, (connState: ConnectionState) => {
+      room.on(RoomEvent.ConnectionStateChanged, (connState) => {
         if (connState === ConnectionState.Connected) {
           updateStatus('connected');
         } else if (connState === ConnectionState.Disconnected) {
@@ -139,7 +125,7 @@ export function useLiveKit({ language, onError, onStatusChange }: UseLiveKitOpti
       try {
         await room.localParticipant.setMicrophoneEnabled(true);
         setIsMuted(false);
-      } catch (micErr: unknown) {
+      } catch (micErr) {
         console.warn('Microphone permission or capture issue:', micErr);
       }
 
@@ -148,18 +134,18 @@ export function useLiveKit({ language, onError, onStatusChange }: UseLiveKitOpti
       // 6. Audio level reactivity loop
       const checkAudioLevels = () => {
         if (roomRef.current && roomRef.current.state === ConnectionState.Connected) {
-          const localLevel = roomRef.current.localParticipant.audioLevel || 0;
-          const remoteLevel = roomRef.current.activeSpeakers.find((s) => !s.isLocal)?.audioLevel || 0;
-          // React to whoever is actively making sound
+          const localLevel = roomRef.current.localParticipant?.audioLevel || 0;
+          const remoteLevel =
+            roomRef.current.activeSpeakers.find((s) => !s.isLocal)?.audioLevel || 0;
           const maxLevel = Math.max(localLevel, remoteLevel);
-          setAudioLevel((prev) => prev * 0.7 + maxLevel * 0.3); // smooth dampening
+          setAudioLevel((prev) => prev * 0.7 + maxLevel * 0.3);
         } else {
           setAudioLevel(0);
         }
         animFrameRef.current = requestAnimationFrame(checkAudioLevels);
       };
       animFrameRef.current = requestAnimationFrame(checkAudioLevels);
-    } catch (err: unknown) {
+    } catch (err) {
       const errorObj = err instanceof Error ? err : new Error(String(err));
       setErrorMessage(errorObj.message);
       updateStatus('error');

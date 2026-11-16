@@ -3,5 +3,15 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #FAF9F6;
+    color: #0F172A;
   }
+}
+
+.font-editorial {
+  font-family: 'Newsreader', 'Playfair Display', Georgia, serif;
+}
+
+.font-mono-code {
+  font-family: 'JetBrains Mono', monospace;
 }

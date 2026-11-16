@@ -1,41 +1,8 @@
 /**
  * NEXi API client for token issuance, real-time WebRTC sessions, and grounded RAG search.
+ * Pure React JavaScript implementation.
  */
 
-export interface TokenResponse {
-  token: string;
-  url: string;
-  room: string;
-  identity: string;
-  expires_at: string;
-  channel: string;
-  language: string;
-}
-
-export interface Citation {
-  chunk_id?: string;
-  document: string;
-  section: string;
-  relevanceScore: number;
-  excerpt: string;
-}
-
-export interface QueryResponse {
-  query: string;
-  language: string;
-  answer: string;
-  confidence: number;
-  confidence_pct: number;
-  knowledge_version: string;
-  reason?: string;
-  citations: Citation[];
-}
-
-// Resolve backend API URL safely:
-// 1. Explicit VITE_BACKEND_URL environment variable if provided.
-// 2. In local development (DEV mode), default to http://localhost:8080.
-// 3. In production deployments without an override, fall back to relative path ''
-//    to avoid mixed-content SSL blocks or failing connections to localhost.
 const rawBackendUrl = (import.meta.env.VITE_BACKEND_URL || '').trim();
 const BACKEND_URL = rawBackendUrl
   ? rawBackendUrl.replace(/\/+$/, '')
@@ -48,7 +15,7 @@ const LIVEKIT_URL_OVERRIDE = (import.meta.env.VITE_LIVEKIT_URL || '').trim();
 /**
  * Request an ephemeral LiveKit room token from the Python backend service.
  */
-export async function fetchToken(language: 'en' | 'te' | 'hi' = 'en'): Promise<TokenResponse> {
+export async function fetchToken(language = 'en') {
   const endpoint = BACKEND_URL ? `${BACKEND_URL}/api/token` : '/api/token';
   try {
     const res = await fetch(endpoint, {
@@ -62,18 +29,20 @@ export async function fetchToken(language: 'en' | 'te' | 'hi' = 'en'): Promise<T
     if (!res.ok) {
       if (res.status === 429) {
         const retryHeader = res.headers.get('Retry-After');
-        throw new Error(`Rate limit reached. Please wait ${retryHeader ? `${retryHeader}s` : 'a moment'} before requesting a new session.`);
+        throw new Error(
+          `Rate limit reached. Please wait ${retryHeader ? `${retryHeader}s` : 'a moment'} before requesting a new session.`
+        );
       }
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.error || `Token server returned status ${res.status}`);
     }
 
-    const data: TokenResponse = await res.json();
-    if (LIVEKIT_URL_OVERRIDE && LIVEKIT_URL_OVERRIDE.trim()) {
-      data.url = LIVEKIT_URL_OVERRIDE.trim();
+    const data = await res.json();
+    if (LIVEKIT_URL_OVERRIDE) {
+      data.url = LIVEKIT_URL_OVERRIDE;
     }
     return data;
-  } catch (err: unknown) {
+  } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(`Failed to initialize voice session: ${message}`);
   }
@@ -82,10 +51,7 @@ export async function fetchToken(language: 'en' | 'te' | 'hi' = 'en'): Promise<T
 /**
  * Query the university RAG retrieval engine for verified policy citations and grounded answers.
  */
-export async function queryKnowledge(
-  query: string,
-  language: 'en' | 'te' | 'hi' = 'en'
-): Promise<QueryResponse> {
+export async function queryKnowledge(query, language = 'en') {
   const endpoint = BACKEND_URL ? `${BACKEND_URL}/api/query` : '/api/query';
   try {
     const res = await fetch(endpoint, {
@@ -97,8 +63,7 @@ export async function queryKnowledge(
     });
 
     if (res.ok) {
-      const data: QueryResponse = await res.json();
-      return data;
+      return await res.json();
     }
     throw new Error(`Backend search error (${res.status})`);
   } catch {
@@ -107,10 +72,15 @@ export async function queryKnowledge(
   }
 }
 
-function getOfflineFallbackQuery(query: string, language: 'en' | 'te' | 'hi'): QueryResponse {
+function getOfflineFallbackQuery(query, language) {
   const qLower = query.toLowerCase();
 
-  if (qLower.includes('attendance') || qLower.includes('75%') || qLower.includes('హాజరు') || qLower.includes('उपस्थिति')) {
+  if (
+    qLower.includes('attendance') ||
+    qLower.includes('75%') ||
+    qLower.includes('హాజరు') ||
+    qLower.includes('उपस्थिति')
+  ) {
     return {
       query,
       language,
@@ -136,7 +106,13 @@ function getOfflineFallbackQuery(query: string, language: 'en' | 'te' | 'hi'): Q
     };
   }
 
-  if (qLower.includes('hostel') || qLower.includes('curfew') || qLower.includes('timing') || qLower.includes('హాస్టల్') || qLower.includes('छात्रावास')) {
+  if (
+    qLower.includes('hostel') ||
+    qLower.includes('curfew') ||
+    qLower.includes('timing') ||
+    qLower.includes('హాస్టల్') ||
+    qLower.includes('छात्रावास')
+  ) {
     return {
       query,
       language,
