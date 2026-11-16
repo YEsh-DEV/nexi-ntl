@@ -8,7 +8,6 @@ import {
   Send,
   CheckCircle2,
   RotateCcw,
-  Sparkles,
   Languages,
   ShieldCheck,
   AlertCircle,
@@ -89,6 +88,9 @@ const POPULAR_QUESTIONS = [
 export const LiveSandbox = () => {
   const containerRef = useRef(null);
   const orbRef = useRef(null);
+  const chatScrollRef = useRef(null);
+  const hasUserInteracted = useRef(false);
+
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [inputMessage, setInputMessage] = useState('');
   const [isSearchingText, setIsSearchingText] = useState(false);
@@ -103,8 +105,6 @@ export const LiveSandbox = () => {
       citation: POPULAR_QUESTIONS[0].citation,
     },
   ]);
-
-  const transcriptEndRef = useRef(null);
 
   // LiveKit WebRTC Voice Hook
   const {
@@ -125,55 +125,20 @@ export const LiveSandbox = () => {
 
   const isVoiceActive = voiceStatus === 'connected';
 
-  // GSAP Animations: ScrollTrigger Entrance & Ambient Glow Drift
+  // GSAP ScrollTrigger Entrance
   useGSAP(
     () => {
-      // 1. Background Blob Drift
-      gsap.to('.sandbox-blob-1', {
-        x: -25,
-        y: 30,
-        duration: 11,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-
-      gsap.to('.sandbox-blob-2', {
-        x: 30,
-        y: -20,
-        duration: 13,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-        delay: 0.5,
-      });
-
-      // 2. Section ScrollTrigger Entrance
       gsap.fromTo(
-        '.sandbox-header',
+        '.sandbox-rise',
         { opacity: 0, y: 30 },
         {
           opacity: 1,
           y: 0,
           duration: 0.8,
-          ease: 'power2.out',
+          stagger: 0.15,
+          ease: 'power3.out',
           scrollTrigger: {
-            trigger: '.sandbox-header',
-            start: 'top 85%',
-          },
-        }
-      );
-
-      gsap.fromTo(
-        '.sandbox-card-wrapper',
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.9,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.sandbox-card-wrapper',
+            trigger: containerRef.current,
             start: 'top 80%',
           },
         }
@@ -182,13 +147,13 @@ export const LiveSandbox = () => {
     { scope: containerRef }
   );
 
-  // Organic Idle Breathing Animation for the Central Golden Voice Orb
+  // Organic Idle Breathing Animation for Voice Orb
   useEffect(() => {
     if (!orbRef.current) return;
 
     if (voiceStatus === 'disconnected') {
       const breathingTween = gsap.to(orbRef.current, {
-        scale: 1.04,
+        scale: 1.05,
         duration: 2.2,
         repeat: -1,
         yoyo: true,
@@ -201,13 +166,16 @@ export const LiveSandbox = () => {
     }
   }, [voiceStatus]);
 
-  // Auto-scroll chat to latest message
+  // SAFE CHAT SCROLL: Only scrolls inner chat box, NEVER calls window.scrollIntoView
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, isSearchingText, voiceStatus]);
+    if (hasUserInteracted.current && chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isSearchingText]);
 
   // Voice Interaction Toggle
   const handleToggleVoice = () => {
+    hasUserInteracted.current = true;
     if (voiceStatus === 'connected' || voiceStatus === 'connecting') {
       disconnectVoice();
     } else {
@@ -219,6 +187,7 @@ export const LiveSandbox = () => {
   const executeQuery = async (queryText) => {
     if (!queryText.trim() || isSearchingText) return;
 
+    hasUserInteracted.current = true;
     const userText = queryText.trim();
     setInputMessage('');
     setIsSearchingText(true);
@@ -275,6 +244,7 @@ export const LiveSandbox = () => {
 
   // Trigger from sample chip
   const handleSelectChip = (q) => {
+    hasUserInteracted.current = true;
     setInputMessage(q.question);
     executeQuery(q.question);
   };
@@ -296,386 +266,378 @@ export const LiveSandbox = () => {
     <section
       id="sandbox"
       ref={containerRef}
-      className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden border-t border-stone-200/80"
+      className="scene scroll-mt-20 py-20 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
     >
-      {/* Soft Ambient Blurred Gradient Background Blobs */}
-      <div
-        className="sandbox-blob-1 absolute w-[520px] h-[520px] -top-32 -right-28 rounded-full bg-amber-200/25 filter blur-[140px] opacity-25 pointer-events-none -z-10"
-        aria-hidden="true"
-      />
-      <div
-        className="sandbox-blob-2 absolute w-[480px] h-[480px] -bottom-24 -left-20 rounded-full bg-emerald-100/20 filter blur-[140px] opacity-20 pointer-events-none -z-10"
-        aria-hidden="true"
-      />
-
-      {/* Section Header */}
-      <div className="sandbox-header max-w-3xl mx-auto text-center mb-16">
-        <div className="inline-flex items-center space-x-2 bg-white/90 text-stone-700 px-4 py-1.5 rounded-full text-xs font-mono mb-4 border border-stone-200/90 shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-          <span>INTERACTIVE SANDBOX // [VOICE_RAG]</span>
-        </div>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-editorial font-normal text-stone-900 tracking-tight">
-          Experience Live Voice & Grounded RAG
-        </h2>
-        <p className="mt-4 text-stone-600 text-base sm:text-lg leading-relaxed font-normal max-w-2xl mx-auto">
-          Test real-time bi-directional WebRTC voice streaming, language switching, and verifiable policy citations as if you were speaking directly with NEXi.
+      <div className="stage max-w-5xl">
+        {/* Altnota Category Tag */}
+        <p className="sandbox-rise font-mono text-xs uppercase tracking-[0.18em] text-black font-semibold mb-6 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FFE500]" />
+          live interactive sandbox
         </p>
-      </div>
 
-      {/* Main Sandbox Editorial Blueprint Card Container */}
-      <div className="sandbox-card-wrapper bg-white/85 rounded-2xl border border-stone-200/90 shadow-xs overflow-hidden">
-        {/* Top Control Bar */}
-        <div className="px-6 py-4 border-b border-stone-200/80 bg-stone-50/70 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <span className="text-xs font-mono uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-              <Languages className="w-3.5 h-3.5 text-amber-700" />
-              Dialect:
-            </span>
-            <div className="inline-flex rounded-lg bg-stone-200/60 p-1 text-xs">
-              <button
-                onClick={() => setSelectedLanguage('en')}
-                className={`px-3 py-1 rounded-md transition-all font-medium ${
-                  selectedLanguage === 'en'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                English
-              </button>
-              <button
-                onClick={() => setSelectedLanguage('te')}
-                className={`px-3 py-1 rounded-md transition-all font-medium ${
-                  selectedLanguage === 'te'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                తెలుగు (TE)
-              </button>
-              <button
-                onClick={() => setSelectedLanguage('hi')}
-                className={`px-3 py-1 rounded-md transition-all font-medium ${
-                  selectedLanguage === 'hi'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                हिन्दी (HI)
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 text-xs">
-            <button
-              onClick={() => setShowCitationDrawer(!showCitationDrawer)}
-              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border transition-all font-mono text-[11px] ${
-                showCitationDrawer
-                  ? 'bg-amber-50 border-amber-300 text-amber-900 font-semibold shadow-xs'
-                  : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Citations {showCitationDrawer ? 'Active' : 'Muted'}</span>
-            </button>
-            <button
-              onClick={handleResetConversation}
-              className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 transition-colors shadow-xs font-mono text-[11px]"
-              title="Reset conversation"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
-          </div>
+        {/* Section Headline */}
+        <div className="sandbox-rise mb-14">
+          <h2 className="poster-md max-w-3xl">
+            Experience real-time voice and zero-hallucination RAG.
+          </h2>
+          <p className="mt-6 text-lg sm:text-xl text-soft font-display leading-relaxed max-w-2xl">
+            Speak directly through WebRTC or test queries against indexed SRM University-AP regulations in English, Telugu, and Hindi.
+          </p>
         </div>
 
-        {/* Split-Screen Interactive Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[560px]">
-          {/* Left Panel: Voice Orb & Interactive State Controls */}
-          <div className="lg:col-span-5 p-8 sm:p-10 border-b lg:border-b-0 lg:border-r border-stone-200/80 flex flex-col justify-between items-center text-center bg-stone-50/40">
-            {/* Connection Status Badge */}
-            <div className="w-full flex items-center justify-between text-xs text-stone-500">
-              <span className="font-mono text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                <Radio className="w-3.5 h-3.5 text-amber-600" />
-                LiveKit WebRTC
+        {/* Altnota-style Minimalist Sandbox Container */}
+        <div className="sandbox-rise border border-rule rounded-2xl bg-white overflow-hidden shadow-xs">
+          {/* Top Control Bar */}
+          <div className="px-6 py-4 border-b border-rule flex flex-wrap items-center justify-between gap-4 bg-[#F8F8F6]">
+            {/* Language Selector */}
+            <div className="flex items-center space-x-3">
+              <span className="font-mono text-xs uppercase tracking-wider text-soft flex items-center gap-1.5">
+                <Languages className="w-3.5 h-3.5 text-black" />
+                Language:
               </span>
-              <span
-                className={`font-mono text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1.5 border transition-all ${
-                  voiceStatus === 'connected'
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-xs'
-                    : voiceStatus === 'connecting'
-                    ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
-                    : voiceStatus === 'error'
-                    ? 'bg-rose-50 text-rose-800 border-rose-300'
-                    : 'bg-stone-100 text-stone-600 border-stone-200'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    voiceStatus === 'connected'
-                      ? 'bg-emerald-500'
-                      : voiceStatus === 'connecting'
-                      ? 'bg-amber-500'
-                      : voiceStatus === 'error'
-                      ? 'bg-rose-500'
-                      : 'bg-stone-400'
+              <div className="inline-flex rounded-full bg-white p-1 border border-rule text-xs">
+                <button
+                  onClick={() => setSelectedLanguage('en')}
+                  className={`px-3 py-1 rounded-full transition-all font-display font-medium ${
+                    selectedLanguage === 'en'
+                      ? 'bg-[#FFE500] text-black font-bold'
+                      : 'text-soft hover:text-black'
                   }`}
-                />
-                {voiceStatus === 'connected'
-                  ? 'Connected'
-                  : voiceStatus === 'connecting'
-                  ? 'Connecting...'
-                  : voiceStatus === 'error'
-                  ? 'Connection Error'
-                  : 'Ready to Connect'}
-              </span>
+                >
+                  English
+                </button>
+                <button
+                  onClick={() => setSelectedLanguage('te')}
+                  className={`px-3 py-1 rounded-full transition-all font-display font-medium ${
+                    selectedLanguage === 'te'
+                      ? 'bg-[#FFE500] text-black font-bold'
+                      : 'text-soft hover:text-black'
+                  }`}
+                >
+                  తెలుగు (TE)
+                </button>
+                <button
+                  onClick={() => setSelectedLanguage('hi')}
+                  className={`px-3 py-1 rounded-full transition-all font-display font-medium ${
+                    selectedLanguage === 'hi'
+                      ? 'bg-[#FFE500] text-black font-bold'
+                      : 'text-soft hover:text-black'
+                  }`}
+                >
+                  हिन्दी (HI)
+                </button>
+              </div>
             </div>
 
-            {/* Central Animated Golden Voice Orb */}
-            <div className="my-10 relative flex items-center justify-center">
-              {/* Dynamic Wave-Ripple Rings Reacting to Real WebRTC Audio Level */}
-              {voiceStatus === 'connected' && (
-                <>
-                  <div
-                    className="absolute w-52 h-52 rounded-full bg-amber-400/20 transition-transform duration-75 pointer-events-none"
-                    style={{
-                      transform: `scale(${1 + audioLevel * 0.55})`,
-                      opacity: 0.35 + audioLevel * 0.55,
-                    }}
-                  />
-                  <div
-                    className="absolute w-42 h-42 rounded-full bg-amber-500/20 transition-transform duration-75 pointer-events-none"
-                    style={{
-                      transform: `scale(${1 + audioLevel * 0.35})`,
-                      opacity: 0.45 + audioLevel * 0.45,
-                    }}
-                  />
-                  {isAgentSpeaking && (
-                    <div className="absolute w-60 h-60 rounded-full bg-emerald-200/40 animate-ping opacity-35 pointer-events-none" />
-                  )}
-                </>
-              )}
-
-              {voiceStatus === 'connecting' && (
-                <div className="absolute w-48 h-48 rounded-full border-2 border-amber-500 border-dashed animate-spin pointer-events-none opacity-60" />
-              )}
-
-              {/* Main Golden Voice Orb Button */}
+            {/* Toggle Citation & Reset */}
+            <div className="flex items-center space-x-3 text-xs">
               <button
-                ref={orbRef}
-                onClick={handleToggleVoice}
-                className={`relative z-10 w-36 h-36 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-lg cursor-pointer ${
-                  voiceStatus === 'connected'
-                    ? isMuted
-                      ? 'bg-stone-700 text-stone-100 ring-4 ring-stone-300'
-                      : 'bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 text-stone-950 scale-105 ring-4 ring-amber-300 shadow-amber-400/40'
-                    : voiceStatus === 'connecting'
-                    ? 'bg-gradient-to-tr from-amber-600 to-amber-500 text-white animate-pulse'
-                    : voiceStatus === 'error'
-                    ? 'bg-gradient-to-tr from-rose-600 to-rose-500 text-white ring-4 ring-rose-200'
-                    : 'bg-gradient-to-tr from-amber-500 via-amber-600 to-yellow-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 hover:scale-103 shadow-amber-500/20'
+                onClick={() => setShowCitationDrawer(!showCitationDrawer)}
+                className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full border transition-all font-mono text-[11px] ${
+                  showCitationDrawer
+                    ? 'bg-[#FFE500] border-black text-black font-bold'
+                    : 'bg-white border-rule text-soft hover:text-black'
                 }`}
-                aria-label="Toggle voice assistant"
               >
-                {voiceStatus === 'connecting' ? (
-                  <Loader2 className="w-10 h-10 text-white animate-spin" />
-                ) : voiceStatus === 'connected' ? (
-                  isMuted ? (
-                    <MicOff className="w-10 h-10 text-rose-200" />
-                  ) : isAgentSpeaking ? (
-                    <Volume2 className="w-10 h-10 text-stone-950 animate-pulse" />
-                  ) : (
-                    <Mic className="w-10 h-10 text-stone-950 animate-bounce" />
-                  )
-                ) : voiceStatus === 'error' ? (
-                  <AlertCircle className="w-10 h-10 text-white" />
-                ) : (
-                  <Mic className="w-10 h-10 text-stone-950" />
-                )}
-                <span className="text-[11px] uppercase font-mono font-bold tracking-wider mt-2 opacity-95">
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Citations {showCitationDrawer ? 'Active' : 'Muted'}</span>
+              </button>
+              <button
+                onClick={handleResetConversation}
+                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full border border-rule bg-white hover:bg-black hover:text-white text-soft transition-colors font-mono text-[11px]"
+                title="Reset conversation"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Split Screen Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[540px]">
+            {/* Left Panel: Voice Orb */}
+            <div className="lg:col-span-5 p-8 sm:p-10 border-b lg:border-b-0 lg:border-r border-rule flex flex-col justify-between items-center text-center bg-[#FDFDFD]">
+              {/* WebRTC State */}
+              <div className="w-full flex items-center justify-between text-xs">
+                <span className="font-mono text-[11px] uppercase tracking-wider text-soft flex items-center gap-1.5">
+                  <Radio className="w-3.5 h-3.5 text-black" />
+                  LiveKit WebRTC
+                </span>
+                <span
+                  className={`font-mono text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1.5 border transition-all ${
+                    voiceStatus === 'connected'
+                      ? 'bg-[#FFE500]/30 text-black border-[#FFE500] font-bold'
+                      : voiceStatus === 'connecting'
+                      ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
+                      : voiceStatus === 'error'
+                      ? 'bg-rose-50 text-rose-800 border-rose-300'
+                      : 'bg-[#F8F8F6] text-soft border-rule'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      voiceStatus === 'connected'
+                        ? 'bg-black'
+                        : voiceStatus === 'connecting'
+                        ? 'bg-amber-500'
+                        : voiceStatus === 'error'
+                        ? 'bg-rose-500'
+                        : 'bg-stone-400'
+                    }`}
+                  />
                   {voiceStatus === 'connected'
-                    ? isMuted
-                      ? 'Muted'
-                      : isAgentSpeaking
-                      ? 'Speaking...'
-                      : 'Listening...'
+                    ? 'Connected'
                     : voiceStatus === 'connecting'
                     ? 'Connecting...'
                     : voiceStatus === 'error'
-                    ? 'Retry Voice'
-                    : 'Tap to Speak'}
+                    ? 'Error'
+                    : 'Ready'}
                 </span>
-              </button>
-            </div>
+              </div>
 
-            {/* Mic Mute & Controls when Connected */}
-            {voiceStatus === 'connected' && (
-              <div className="flex items-center space-x-2.5 mb-2">
+              {/* Central BRIGHT ELECTRIC YELLOW Voice Orb */}
+              <div className="my-10 relative flex items-center justify-center">
+                {/* Audio Level Wave Rings */}
+                {voiceStatus === 'connected' && (
+                  <>
+                    <div
+                      className="absolute w-52 h-52 rounded-full bg-[#FFE500]/30 transition-transform duration-75 pointer-events-none"
+                      style={{
+                        transform: `scale(${1 + audioLevel * 0.6})`,
+                        opacity: 0.4 + audioLevel * 0.5,
+                      }}
+                    />
+                    <div
+                      className="absolute w-44 h-44 rounded-full bg-[#FFE500]/40 transition-transform duration-75 pointer-events-none"
+                      style={{
+                        transform: `scale(${1 + audioLevel * 0.4})`,
+                        opacity: 0.5 + audioLevel * 0.4,
+                      }}
+                    />
+                    {isAgentSpeaking && (
+                      <div className="absolute w-60 h-60 rounded-full border-2 border-[#FFE500] animate-ping opacity-40 pointer-events-none" />
+                    )}
+                  </>
+                )}
+
+                {voiceStatus === 'connecting' && (
+                  <div className="absolute w-48 h-48 rounded-full border-2 border-dashed border-[#FFE500] animate-spin pointer-events-none" />
+                )}
+
+                {/* Main Orb Button in BRIGHT ELECTRIC YELLOW */}
                 <button
-                  onClick={toggleMute}
-                  className={`inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all shadow-xs ${
-                    isMuted
-                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                      : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                  ref={orbRef}
+                  onClick={handleToggleVoice}
+                  className={`relative z-10 w-36 h-36 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-md cursor-pointer ${
+                    voiceStatus === 'connected'
+                      ? isMuted
+                        ? 'bg-stone-800 text-white ring-4 ring-stone-300'
+                        : 'bg-[#FFE500] text-black scale-105 ring-4 ring-black/10'
+                      : voiceStatus === 'connecting'
+                      ? 'bg-[#FFE500] text-black animate-pulse'
+                      : voiceStatus === 'error'
+                      ? 'bg-rose-600 text-white ring-4 ring-rose-200'
+                      : 'bg-[#FFE500] hover:bg-[#F2D800] text-black hover:scale-105'
                   }`}
+                  aria-label="Toggle live voice"
                 >
-                  {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                  <span>{isMuted ? 'Unmute Mic' : 'Mute Mic'}</span>
-                </button>
-                <button
-                  onClick={disconnectVoice}
-                  className="px-4 py-1.5 rounded-lg text-xs font-mono font-medium bg-rose-600 hover:bg-rose-700 text-white transition-all shadow-xs"
-                >
-                  End Session
+                  {voiceStatus === 'connecting' ? (
+                    <Loader2 className="w-10 h-10 text-black animate-spin" />
+                  ) : voiceStatus === 'connected' ? (
+                    isMuted ? (
+                      <MicOff className="w-10 h-10 text-rose-300" />
+                    ) : isAgentSpeaking ? (
+                      <Volume2 className="w-10 h-10 text-black animate-pulse" />
+                    ) : (
+                      <Mic className="w-10 h-10 text-black animate-bounce" />
+                    )
+                  ) : voiceStatus === 'error' ? (
+                    <AlertCircle className="w-10 h-10 text-white" />
+                  ) : (
+                    <Mic className="w-10 h-10 text-black" />
+                  )}
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-wider mt-2">
+                    {voiceStatus === 'connected'
+                      ? isMuted
+                        ? 'Muted'
+                        : isAgentSpeaking
+                        ? 'Speaking...'
+                        : 'Listening...'
+                      : voiceStatus === 'connecting'
+                      ? 'Connecting...'
+                      : voiceStatus === 'error'
+                      ? 'Retry'
+                      : 'Tap to Speak'}
+                  </span>
                 </button>
               </div>
-            )}
 
-            {/* Error Feedback Banner */}
-            {voiceError && (
-              <div className="w-full mb-3 p-3 bg-rose-50/90 border border-rose-200 rounded-xl text-rose-700 text-xs text-left flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
-                <span className="text-[11px] leading-tight font-medium">{voiceError}</span>
-              </div>
-            )}
-
-            {/* Subtext Instructions */}
-            <div className="w-full">
-              <p className="text-xs text-stone-500 mb-4 font-normal">
-                {voiceStatus === 'disconnected' && 'Click the microphone to start a live voice session or pick a question below.'}
-                {voiceStatus === 'connecting' && 'Negotiating SDP & ICE candidates with LiveKit room...'}
-                {voiceStatus === 'connected' &&
-                  (isAgentSpeaking
-                    ? 'Streaming neural audio from Sarvam Bulbul TTS.'
-                    : 'Listening to your microphone with WebRTC noise cancellation.')}
-                {voiceStatus === 'error' && 'Could not reach LiveKit room. Check server credentials or use text search below.'}
-              </p>
-
-              {/* Sample Topic Chips */}
-              <div className="flex flex-wrap items-center justify-center gap-1.5">
-                {POPULAR_QUESTIONS.map((q) => (
+              {/* Connected Action Buttons */}
+              {voiceStatus === 'connected' && (
+                <div className="flex items-center space-x-2 mb-2">
                   <button
-                    key={q.id}
-                    onClick={() => handleSelectChip(q)}
-                    className="text-[11px] font-mono bg-white hover:bg-amber-50 hover:text-amber-900 hover:border-amber-300 text-stone-600 px-3 py-1 rounded-md border border-stone-200/90 transition-all shadow-xs"
-                  >
-                    {q.category}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Panel: Transcript Feed & Document Drawer */}
-          <div className="lg:col-span-7 flex flex-col justify-between h-[560px] bg-white/70">
-            {/* Transcript Header */}
-            <div className="p-4 border-b border-stone-200/80 flex items-center justify-between">
-              <span className="text-xs font-mono text-stone-700 uppercase tracking-wider flex items-center gap-2">
-                <MessageSquare className="w-3.5 h-3.5 text-amber-700" />
-                Live Transcript & Citations
-              </span>
-              <span className="text-[11px] text-amber-900 font-mono flex items-center gap-1 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200 shadow-xs">
-                <CheckCircle2 className="w-3 h-3 text-amber-700" />
-                {isVoiceActive ? 'WebRTC Active' : 'Zero-Hallucination Dual RAG'}
-              </span>
-            </div>
-
-            {/* Messages Scroll Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 pr-3">
-              {chatMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                >
-                  <div className="flex items-center space-x-1.5 mb-1 px-1">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400">
-                      {msg.sender === 'user' ? 'You' : 'NEXi Assistant'}
-                    </span>
-                    <span className="text-[10px] text-stone-400 font-mono">• {msg.timestamp}</span>
-                  </div>
-
-                  <div
-                    className={`max-w-[88%] p-4 rounded-xl text-sm leading-relaxed shadow-xs ${
-                      msg.sender === 'user'
-                        ? 'bg-stone-900 text-stone-50 rounded-br-none'
-                        : 'bg-white border border-stone-200/90 text-stone-800 rounded-bl-none'
+                    onClick={toggleMute}
+                    className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all border ${
+                      isMuted
+                        ? 'bg-rose-100 text-rose-700 border-rose-200'
+                        : 'bg-white text-black border-rule hover:bg-stone-50'
                     }`}
                   >
-                    {msg.text}
-
-                    {/* Policy Verification Tag on NEXi messages */}
-                    {msg.sender === 'nexi' && msg.citation && (
-                      <div className="mt-3 pt-2.5 border-t border-stone-200/70 flex items-center justify-between text-[11px] text-stone-500 font-mono">
-                        <span className="flex items-center gap-1 text-amber-800 font-medium">
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          Grounded in {msg.citation.document.split(' ')[0]} Policy
-                        </span>
-                        <span className="text-stone-500 text-[10px]">
-                          Score: {(msg.citation.relevanceScore * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {/* Processing Typing Bubble */}
-              {isSearchingText && (
-                <div className="flex flex-col items-start animate-fade-in">
-                  <span className="text-[10px] font-mono uppercase tracking-wider mb-1 px-1 text-stone-400">
-                    NEXi Searching Ordinances...
-                  </span>
-                  <div className="p-3 rounded-xl bg-white border border-stone-200/90 rounded-bl-none flex items-center space-x-2 text-xs text-stone-500 shadow-xs">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse delay-150"></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse delay-300"></span>
-                    <span className="text-stone-600 font-mono text-[11px] ml-1">Reranking policy chunks against Chroma DB...</span>
-                  </div>
+                    {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                    <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+                  </button>
+                  <button
+                    onClick={disconnectVoice}
+                    className="px-4 py-1.5 rounded-full text-xs font-mono font-medium bg-black text-white hover:bg-stone-800 transition-all"
+                  >
+                    End Call
+                  </button>
                 </div>
               )}
 
-              <div ref={transcriptEndRef} />
+              {/* Voice Error Banner */}
+              {voiceError && (
+                <div className="w-full mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs text-left flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
+                  <span className="text-[11px] leading-tight font-medium">{voiceError}</span>
+                </div>
+              )}
+
+              {/* Chips */}
+              <div className="w-full">
+                <p className="text-xs text-soft mb-3 font-display">
+                  {voiceStatus === 'disconnected' && 'Click the microphone or choose a sample ordinance inquiry below:'}
+                  {voiceStatus === 'connected' && 'LiveKit WebRTC active. Audio is streamed bi-directionally.'}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  {POPULAR_QUESTIONS.map((q) => (
+                    <button
+                      key={q.id}
+                      onClick={() => handleSelectChip(q)}
+                      className="text-[11px] font-mono bg-white hover:bg-[#FFE500] hover:text-black hover:border-black text-soft px-3 py-1 rounded-full border border-rule transition-colors"
+                    >
+                      {q.category}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* Document Context Drawer */}
-            {showCitationDrawer && activeCitation && (
-              <div className="mx-4 mb-2 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs shadow-xs font-mono">
-                <div className="flex items-center justify-between text-amber-950 mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5 text-amber-700" />
-                    <span className="font-semibold uppercase tracking-wider text-[11px]">Live Document Context:</span>
-                  </div>
-                  <span className="text-[10px] bg-white text-amber-800 px-2 py-0.5 rounded-md font-bold border border-amber-200">
-                    Score: {(activeCitation.relevanceScore * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="font-sans font-medium text-stone-800 text-[11px] mb-1">
-                  <span className="text-stone-900 font-semibold">{activeCitation.document}</span> —{' '}
-                  <span className="text-amber-800">{activeCitation.section}</span>
-                </div>
-                <p className="text-stone-600 font-sans italic text-[11px] line-clamp-2 leading-relaxed">
-                  "{activeCitation.excerpt}"
-                </p>
+            {/* Right Panel: Chat Feed & Document Drawer */}
+            <div className="lg:col-span-7 flex flex-col justify-between h-[540px] bg-white">
+              {/* Transcript Header */}
+              <div className="p-4 border-b border-rule flex items-center justify-between bg-[#FAFAFA]">
+                <span className="font-mono text-xs uppercase tracking-wider text-black font-semibold flex items-center gap-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-black" />
+                  Live Transcript &amp; Citations
+                </span>
+                <span className="font-mono text-[10px] text-black bg-[#FFE500] px-2.5 py-0.5 rounded-full font-bold">
+                  {isVoiceActive ? 'WebRTC Active' : 'Zero-Hallucination Dual RAG'}
+                </span>
               </div>
-            )}
 
-            {/* Text Input Fallback Bar */}
-            <form onSubmit={handleSendText} className="p-3.5 border-t border-stone-200/80 flex items-center space-x-2 bg-stone-50/50">
-              <input
-                type="text"
-                placeholder="Ask about attendance condonation, hostel curfew, exam policy..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                className="flex-1 bg-white border border-stone-200/90 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition shadow-xs text-stone-900 placeholder:text-stone-400"
-              />
-              <button
-                type="submit"
-                disabled={!inputMessage.trim() || isSearchingText}
-                className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 p-2.5 rounded-lg transition-all shadow-xs flex items-center justify-center cursor-pointer font-medium"
-                aria-label="Send query"
+              {/* Messages Scroll Box (Pure internal scroll) */}
+              <div
+                ref={chatScrollRef}
+                className="flex-1 overflow-y-auto p-6 space-y-4 pr-3 select-text"
               >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+                {chatMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-center space-x-1.5 mb-1 px-1">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-soft">
+                        {msg.sender === 'user' ? 'You' : 'NEXi Assistant'}
+                      </span>
+                      <span className="font-mono text-[10px] text-dim">• {msg.timestamp}</span>
+                    </div>
+
+                    <div
+                      className={`max-w-[88%] p-4 rounded-xl text-sm leading-relaxed ${
+                        msg.sender === 'user'
+                          ? 'bg-black text-white rounded-br-none'
+                          : 'bg-[#F8F8F6] border border-rule text-ink rounded-bl-none'
+                      }`}
+                    >
+                      {msg.text}
+
+                      {/* Policy Verification Tag */}
+                      {msg.sender === 'nexi' && msg.citation && (
+                        <div className="mt-3 pt-2.5 border-t border-rule flex items-center justify-between text-[11px] font-mono">
+                          <span className="flex items-center gap-1 text-black font-semibold">
+                            <ShieldCheck className="w-3.5 h-3.5 text-black" />
+                            Grounded in {msg.citation.document.split(' ')[0]}
+                          </span>
+                          <span className="bg-[#FFE500] text-black px-1.5 py-0.5 rounded font-bold text-[10px]">
+                            {(msg.citation.relevanceScore * 100).toFixed(1)}% match
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {isSearchingText && (
+                  <div className="flex flex-col items-start animate-fade-in">
+                    <span className="font-mono text-[10px] uppercase tracking-wider mb-1 text-soft">
+                      Searching University Ordinances...
+                    </span>
+                    <div className="p-3 rounded-xl bg-[#F8F8F6] border border-rule flex items-center space-x-2 text-xs text-soft">
+                      <span className="h-1.5 w-1.5 rounded-full bg-black animate-pulse"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-black animate-pulse delay-150"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-black animate-pulse delay-300"></span>
+                      <span className="font-mono text-[11px] ml-1">Reranking with Cross-Encoder...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Document Context Drawer */}
+              {showCitationDrawer && activeCitation && (
+                <div className="mx-4 mb-2 p-3.5 rounded-xl bg-[#FFE500]/15 border border-[#FFE500] text-xs font-mono">
+                  <div className="flex items-center justify-between text-black mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-black" />
+                      <span className="font-bold uppercase tracking-wider text-[11px]">
+                        Live Document Context:
+                      </span>
+                    </div>
+                    <span className="bg-[#FFE500] text-black px-2 py-0.5 rounded text-[10px] font-bold">
+                      {(activeCitation.relevanceScore * 100).toFixed(1)}% Grounded
+                    </span>
+                  </div>
+                  <div className="font-display font-semibold text-black text-[12px] mb-1">
+                    {activeCitation.document} — <span className="font-mono text-soft">{activeCitation.section}</span>
+                  </div>
+                  <p className="text-soft font-display italic text-[11px] line-clamp-2 leading-relaxed">
+                    "{activeCitation.excerpt}"
+                  </p>
+                </div>
+              )}
+
+              {/* Text Input Fallback */}
+              <form
+                onSubmit={handleSendText}
+                className="p-3.5 border-t border-rule flex items-center space-x-2 bg-[#FAFAFA]"
+              >
+                <input
+                  type="text"
+                  placeholder="Ask about attendance condonation, hostel curfew, exam policy..."
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  className="flex-1 bg-white border border-rule rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-black transition font-display text-ink placeholder:text-dim"
+                />
+                <button
+                  type="submit"
+                  disabled={!inputMessage.trim() || isSearchingText}
+                  className="bg-[#FFE500] hover:bg-[#F2D800] disabled:opacity-50 text-black p-2.5 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                  aria-label="Send query"
+                >
+                  <Send className="w-4 h-4 text-black" />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>

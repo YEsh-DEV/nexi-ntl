@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Star, MessageSquareQuote, CheckCircle2 } from 'lucide-react';
+import { Star, CheckCircle2 } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -16,9 +16,8 @@ export const Testimonials = () => {
       department: 'B.Tech Computer Science & Engineering (3rd Year)',
       rating: 5,
       review:
-        'During end-sem exam preparations, I needed to confirm the exact attendance condonation percentage for medical leave. Instead of waiting in line at the student affairs office, NEXi gave me the exact section from the 2024 academic ordinances in less than 2 seconds.',
+        'During end-sem preparations, I needed to confirm the exact attendance condonation percentage for medical leave. Instead of waiting at the student affairs desk, NEXi gave me the exact section from the 2024 academic ordinances in less than 2 seconds.',
       badge: 'Attendance Condonation',
-      spec: 'TESTIMONIAL // 01',
     },
     {
       id: 2,
@@ -26,9 +25,8 @@ export const Testimonials = () => {
       department: 'B.Tech Electronics & Communication (2nd Year)',
       rating: 5,
       review:
-        'మా అమ్మగారు హాస్టల్ ఫీజు మరియు కర్ఫ్యూ సమయాల గురించి తెలుసుకోవడానికి తెలుగులో మాట్లాడారు. నెక్సీ స్పష్టమైన తెలుగులో వివరించింది. Telugu voice synthesis feels natural and accurate.',
+        'మా అమ్మగారు హాస్టల్ ఫీజు మరియు కర్ఫ్యూ సమయాల గురించి తెలుసుకోవడానికి తెలుగులో మాట్లాడారు. నెక్సీ స్పష్టమైన తెలుగులో వివరించింది. Telugu voice synthesis feels natural, dialect-aware, and completely clear.',
       badge: 'Multilingual Telugu Call',
-      spec: 'TESTIMONIAL // 02',
     },
     {
       id: 3,
@@ -36,40 +34,24 @@ export const Testimonials = () => {
       department: 'M.Tech Artificial Intelligence & Machine Learning',
       rating: 5,
       review:
-        'Zero hallucination is what sets NEXi apart. When I asked about conference travel grant reimbursement procedures, it quoted the Directorate of Research guidelines word-for-word rather than guessing. Truly impressive engineering.',
+        'Zero hallucination is what sets NEXi apart. When I asked about conference travel grant reimbursement procedures, it quoted the Directorate of Research guidelines word-for-word rather than guessing.',
       badge: 'Seed Grant & Research',
-      spec: 'TESTIMONIAL // 03',
     },
   ];
 
   useGSAP(
     () => {
       gsap.fromTo(
-        '.testimonials-header',
+        '.testimonials-rise',
         { opacity: 0, y: 30 },
         {
           opacity: 1,
           y: 0,
           duration: 0.8,
-          ease: 'power2.out',
+          stagger: 0.15,
+          ease: 'power3.out',
           scrollTrigger: {
-            trigger: '.testimonials-header',
-            start: 'top 85%',
-          },
-        }
-      );
-
-      gsap.fromTo(
-        '.testimonial-card',
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.85,
-          stagger: 0.18,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.testimonials-grid',
+            trigger: containerRef.current,
             start: 'top 80%',
           },
         }
@@ -82,75 +64,66 @@ export const Testimonials = () => {
     <section
       id="testimonials"
       ref={containerRef}
-      className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-stone-200/80 overflow-hidden"
+      className="scene scroll-mt-20 py-20 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
     >
-      {/* Soft Ambient Background Glow */}
-      <div
-        className="absolute w-[440px] h-[440px] top-1/3 -right-24 rounded-full bg-amber-100/25 filter blur-[140px] opacity-25 pointer-events-none -z-10"
-        aria-hidden="true"
-      />
-
-      <div className="testimonials-header max-w-3xl mx-auto text-center mb-20">
-        <div className="inline-flex items-center space-x-2 bg-white/90 text-stone-700 px-3.5 py-1.5 rounded-full text-xs font-mono mb-4 border border-stone-200/90 shadow-xs">
-          <MessageSquareQuote className="w-3.5 h-3.5 text-amber-600" />
-          <span>VERIFIED PEER REVIEWS // [CAMPUS_EVAL]</span>
-        </div>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-editorial font-normal text-stone-900 tracking-tight">
-          Trusted by SRM University-AP Students & Faculty
-        </h2>
-        <p className="mt-4 text-stone-600 text-base sm:text-lg leading-relaxed font-normal max-w-2xl mx-auto">
-          See how real campus residents and scholars rely on NEXi for daily academic policies, hostel permissions, and administrative clarity.
+      <div className="stage max-w-5xl">
+        {/* Altnota Category Tag */}
+        <p className="testimonials-rise font-mono text-xs uppercase tracking-[0.18em] text-black font-semibold mb-6 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FFE500]" />
+          working together
         </p>
-      </div>
 
-      {/* Testimonials Grid */}
-      <div className="testimonials-grid grid grid-cols-1 md:grid-cols-3 gap-8">
-        {reviews.map((rev) => (
-          <div
-            key={rev.id}
-            className="testimonial-card p-8 sm:p-9 rounded-2xl bg-white/85 border border-stone-200/90 shadow-xs hover:shadow-md hover:border-amber-400/80 hover:bg-white transition-all duration-300 flex flex-col justify-between"
-          >
-            <div>
-              {/* Star Rating & Query Badge */}
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center space-x-1">
-                  {[...Array(rev.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-[10px] font-mono text-stone-400">
-                    {rev.spec}
-                  </span>
-                  <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200/70">
+        {/* Section Headline */}
+        <div className="testimonials-rise mb-16">
+          <h2 className="poster-md max-w-3xl">
+            From the first question to the finish line.
+          </h2>
+          <p className="mt-6 text-lg sm:text-xl text-soft font-display leading-relaxed max-w-2xl">
+            The students and scholars who rely on NEXi are the same peers who verify the accuracy of every policy response.
+          </p>
+        </div>
+
+        {/* 3 Clean Quote Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {reviews.map((rev) => (
+            <div
+              key={rev.id}
+              className="testimonials-rise p-8 border border-rule rounded-xl bg-white flex flex-col justify-between hover:border-black/40 transition-colors"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center space-x-1 text-[#FFE500]">
+                    {[...Array(rev.rating)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-[#FFE500] text-[#FFE500]" />
+                    ))}
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-black bg-[#FFE500] px-2 py-0.5 rounded-md font-bold">
                     {rev.badge}
                   </span>
                 </div>
+
+                <p className="text-ink font-display text-base leading-relaxed mb-6 italic">
+                  "{rev.review}"
+                </p>
               </div>
 
-              {/* Review Text */}
-              <p className="text-stone-700 text-sm leading-relaxed mb-6 italic font-normal">
-                "{rev.review}"
-              </p>
-            </div>
-
-            {/* Student Info */}
-            <div className="pt-5 border-t border-stone-200/70 flex items-center space-x-3.5">
-              <div className="h-10 w-10 rounded-full bg-stone-900 text-amber-400 font-mono font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-                {rev.name.charAt(0)}
-              </div>
-              <div className="overflow-hidden">
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-medium text-stone-900 text-sm truncate">{rev.name}</span>
-                  <span title="Verified SRM-AP Student">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  </span>
+              <div className="pt-5 border-t border-rule flex items-center space-x-3">
+                <div className="h-9 w-9 rounded-full bg-black text-[#FFE500] font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                  {rev.name.charAt(0)}
                 </div>
-                <div className="text-xs text-stone-500 font-mono truncate">{rev.department}</div>
+                <div className="overflow-hidden">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="font-display font-semibold text-black text-sm truncate">
+                      {rev.name}
+                    </span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-black shrink-0" />
+                  </div>
+                  <div className="text-xs text-soft font-mono truncate">{rev.department}</div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );

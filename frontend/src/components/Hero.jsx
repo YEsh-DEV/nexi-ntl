@@ -1,5 +1,4 @@
 import React, { useRef } from 'react';
-import { ArrowRight, ShieldCheck, Zap, Globe, BookOpen } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 
@@ -10,63 +9,30 @@ export const Hero = () => {
 
   useGSAP(
     () => {
-      // 1. Ambient Blob Subtle Drift
-      gsap.to('.hero-ambient-sage', {
-        x: 35,
-        y: 25,
-        duration: 12,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-      gsap.to('.hero-ambient-champagne', {
-        x: -30,
-        y: -30,
-        duration: 14,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-        delay: 0.8,
-      });
-      gsap.to('.hero-ambient-peach', {
-        scale: 1.15,
-        duration: 10,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-
-      // 2. Coordinated Editorial Entrance
-      const tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
       tl.fromTo(
-        '.hero-blueprint-badge',
-        { y: -20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.7 }
+        '.hero-tag',
+        { opacity: 0, y: 15 },
+        { opacity: 1, y: 0, duration: 0.6 }
       )
         .fromTo(
-          '.hero-editorial-title',
-          { y: 30, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.85 },
-          '-=0.35'
-        )
-        .fromTo(
-          '.hero-editorial-sub',
-          { y: 20, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.75 },
-          '-=0.45'
-        )
-        .fromTo(
-          '.hero-cta-group',
-          { y: 20, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.65 },
-          '-=0.4'
-        )
-        .fromTo(
-          '.hero-blueprint-card',
-          { y: 25, opacity: 0 },
-          { y: 0, opacity: 1, stagger: 0.1, duration: 0.7 },
+          '.hero-poster-line',
+          { opacity: 0, y: 35 },
+          { opacity: 1, y: 0, duration: 0.8, stagger: 0.15 },
           '-=0.3'
+        )
+        .fromTo(
+          '.hero-say',
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.7 },
+          '-=0.3'
+        )
+        .fromTo(
+          '.hero-links',
+          { opacity: 0, y: 15 },
+          { opacity: 1, y: 0, duration: 0.6 },
+          '-=0.4'
         );
     },
     { scope: containerRef }
@@ -75,116 +41,70 @@ export const Hero = () => {
   return (
     <section
       ref={containerRef}
-      className="relative overflow-hidden pt-24 sm:pt-32 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center"
+      className="scene-hero pt-16 sm:pt-24 pb-16 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
     >
-      {/* 3 Low-Saturation Ambient Blurred Gradient Blobs */}
-      <div
-        className="hero-ambient-sage absolute w-[540px] h-[540px] -top-32 -left-20 rounded-full bg-emerald-200/25 filter blur-[140px] opacity-25 pointer-events-none -z-10"
-        aria-hidden="true"
-      />
-      <div
-        className="hero-ambient-champagne absolute w-[500px] h-[500px] top-28 -right-24 rounded-full bg-amber-200/30 filter blur-[140px] opacity-25 pointer-events-none -z-10"
-        aria-hidden="true"
-      />
-      <div
-        className="hero-ambient-peach absolute w-[460px] h-[460px] bottom-10 left-1/3 rounded-full bg-orange-200/20 filter blur-[140px] opacity-20 pointer-events-none -z-10"
-        aria-hidden="true"
-      />
+      <div className="stage max-w-5xl">
+        {/* Altnota Small Mono Category Tag */}
+        <p className="hero-tag font-mono text-xs uppercase tracking-[0.18em] text-soft mb-8">
+          official campus intelligence &amp; dual-rag voice
+        </p>
 
-      {/* Blueprint Index / Academic Year Badge */}
-      <div className="hero-blueprint-badge inline-flex items-center space-x-2.5 bg-white/90 text-stone-800 px-4 py-1.5 rounded-full text-xs font-mono mb-8 border border-stone-200/90 shadow-xs">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-        <span className="font-semibold uppercase tracking-wider text-stone-900">
-          Official Institutional Intelligence
-        </span>
-        <span className="text-stone-300">/</span>
-        <span className="text-stone-500">SRM University-AP (2024–2025)</span>
-      </div>
-
-      {/* High-Impact Editorial Headline */}
-      <h1 className="hero-editorial-title text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-stone-950 leading-[1.08] max-w-4xl mx-auto">
-        Your Limitless, Intelligent{' '}
-        <span className="font-editorial italic font-normal text-amber-700 underline decoration-amber-300/80 decoration-wavy decoration-1 underline-offset-8">
-          Campus Voice
-        </span>
-      </h1>
-
-      {/* Subtitle with Generous Leading */}
-      <p className="hero-editorial-sub mt-7 text-base sm:text-lg text-stone-600 max-w-2xl mx-auto leading-relaxed font-normal">
-        NEXi is a sub-second conversational voice assistant grounded strictly in verified SRM University-AP statutes.
-        Ask about attendance condonation, hostel curfew protocols, examination rules, and student seed funding.
-      </p>
-
-      {/* Action Buttons */}
-      <div className="hero-cta-group mt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4.5">
-        <a
-          href="#sandbox"
-          className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-stone-950 font-semibold px-7 py-3.5 rounded-2xl transition-all shadow-md shadow-amber-500/20 hover:shadow-lg hover:-translate-y-0.5"
+        {/* Altnota Massive Bold Poster Headline with Hand-Drawn SVG Annotations */}
+        <h1
+          className="poster select-none"
+          aria-label="Backed by policy. Informed by data. Built with purpose."
         >
-          <span>Open Interactive Sandbox</span>
-          <ArrowRight className="w-4 h-4 text-stone-950" />
-        </a>
-        <a
-          href="#about"
-          className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-white/90 hover:bg-white text-stone-700 font-semibold px-7 py-3.5 rounded-2xl border border-stone-200/90 transition-all shadow-xs hover:border-stone-300 hover:-translate-y-0.5"
-        >
-          <BookOpen className="w-4 h-4 text-stone-500" />
-          <span>Explore Verified Ordinances</span>
-        </a>
-      </div>
+          <span className="hero-poster-line block">
+            Backed by{' '}
+            <span className="circled">
+              policy
+              <svg viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M10 34 C 12 10, 80 2, 135 5 C 188 8, 198 30, 178 45 C 150 59, 45 59, 20 48 C 4 40, 14 12, 52 6" />
+              </svg>
+            </span>
+            .
+          </span>
+          <span className="hero-poster-line block mt-1 sm:mt-2">
+            Informed by data.
+          </span>
+          <span className="hero-poster-line block mt-1 sm:mt-2">
+            Built with{' '}
+            <span className="hd-u">
+              purpose
+              <svg viewBox="0 0 200 10" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M2 6 C 60 2, 140 9, 198 5" />
+              </svg>
+            </span>
+            .
+          </span>
+        </h1>
 
-      {/* Trust & Metric Highlights - Delicate Blueprint Cards */}
-      <div className="mt-20 pt-12 border-t border-stone-200/80 grid grid-cols-2 md:grid-cols-4 gap-4.5 max-w-5xl mx-auto text-left">
-        <div className="hero-blueprint-card p-6 rounded-2xl bg-white/80 border border-stone-200/90 shadow-xs hover:border-amber-300/80 hover:bg-white transition-all duration-300 relative group">
-          <div className="flex items-center justify-between text-stone-400 font-mono text-[10px] uppercase tracking-wider mb-2">
-            <span>[SPEC // 01]</span>
-            <ShieldCheck className="w-4 h-4 text-amber-600" />
-          </div>
-          <div className="text-xl sm:text-2xl font-editorial font-bold text-stone-950 tracking-tight">
-            100% Policy Gated
-          </div>
-          <p className="text-xs text-stone-500 mt-1.5 leading-normal">
-            Zero hallucinations; calibrated abstention over speculation.
-          </p>
-        </div>
+        {/* Subhead Statement */}
+        <p className="hero-say mt-10 sm:mt-12 text-lg sm:text-xl md:text-2xl text-soft font-display font-normal max-w-2xl leading-relaxed">
+          Every campus inquiry has an ordinance nobody’s cited yet. We go and find it.
+        </p>
 
-        <div className="hero-blueprint-card p-6 rounded-2xl bg-white/80 border border-stone-200/90 shadow-xs hover:border-amber-300/80 hover:bg-white transition-all duration-300 relative group">
-          <div className="flex items-center justify-between text-stone-400 font-mono text-[10px] uppercase tracking-wider mb-2">
-            <span>[SPEC // 02]</span>
-            <Zap className="w-4 h-4 text-amber-600" />
-          </div>
-          <div className="text-xl sm:text-2xl font-editorial font-bold text-stone-950 tracking-tight">
-            &lt; 1.1s Latency
-          </div>
-          <p className="text-xs text-stone-500 mt-1.5 leading-normal">
-            Full-duplex WebRTC with live speech interruption.
-          </p>
-        </div>
-
-        <div className="hero-blueprint-card p-6 rounded-2xl bg-white/80 border border-stone-200/90 shadow-xs hover:border-amber-300/80 hover:bg-white transition-all duration-300 relative group">
-          <div className="flex items-center justify-between text-stone-400 font-mono text-[10px] uppercase tracking-wider mb-2">
-            <span>[SPEC // 03]</span>
-            <Globe className="w-4 h-4 text-amber-600" />
-          </div>
-          <div className="text-xl sm:text-2xl font-editorial font-bold text-stone-950 tracking-tight">
-            EN • తెలుగు • हिन्दी
-          </div>
-          <p className="text-xs text-stone-500 mt-1.5 leading-normal">
-            Native pronunciation via Sarvam AI Bulbul TTS.
-          </p>
-        </div>
-
-        <div className="hero-blueprint-card p-6 rounded-2xl bg-white/80 border border-stone-200/90 shadow-xs hover:border-amber-300/80 hover:bg-white transition-all duration-300 relative group">
-          <div className="flex items-center justify-between text-stone-400 font-mono text-[10px] uppercase tracking-wider mb-2">
-            <span>[SPEC // 04]</span>
-            <BookOpen className="w-4 h-4 text-amber-600" />
-          </div>
-          <div className="text-xl sm:text-2xl font-editorial font-bold text-stone-950 tracking-tight">
-            817 Chunks
-          </div>
-          <p className="text-xs text-stone-500 mt-1.5 leading-normal">
-            Indexed across 11 official university handbooks.
-          </p>
+        {/* Altnota Clean Dual CTAs */}
+        <div className="hero-links mt-10 sm:mt-12 flex flex-wrap items-baseline gap-x-10 gap-y-4 text-base font-display">
+          <a
+            href="#nutshell"
+            className="u-ink font-semibold text-black inline-flex items-center gap-1 group"
+          >
+            <span>see for yourself</span>
+            <span aria-hidden="true" className="group-hover:translate-y-0.5 transition-transform">
+              ↓
+            </span>
+          </a>
+          <a
+            href="#sandbox"
+            className="font-semibold text-black inline-flex items-center gap-1.5 group"
+          >
+            <span className="bg-[#FFE500] px-2 py-0.5 rounded-md text-xs font-mono font-bold">LIVE</span>
+            <span className="u-ink">in a hurry? try live voice</span>
+            <span aria-hidden="true" className="group-hover:translate-x-1 transition-transform">
+              →
+            </span>
+          </a>
         </div>
       </div>
     </section>
