@@ -2,6 +2,8 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+dist/
+dist-ssr/
 *.tsbuildinfo
 
 # dotenv secrets
