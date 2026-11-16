@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react';
 
 export const Footer = () => {
   return (
-    <footer className="border-t border-rule bg-white py-16 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto">
+    <footer className="border-t border-rule bg-white py-12 sm:py-16 px-4 sm:px-8 lg:px-12 max-w-7xl mx-auto">
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
           {/* Brand Signature */}

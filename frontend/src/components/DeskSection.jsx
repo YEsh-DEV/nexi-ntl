@@ -54,7 +54,7 @@ export const DeskSection = () => {
     <section
       id="desk"
       ref={containerRef}
-      className="scene scroll-mt-20 py-20 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
+      className="scene scroll-mt-20 py-12 sm:py-20 px-4 sm:px-8 lg:px-12 max-w-7xl mx-auto"
     >
       <div className="stage max-w-5xl">
         {/* Altnota Category Tag */}
@@ -64,7 +64,7 @@ export const DeskSection = () => {
         </p>
 
         {/* Section Headline */}
-        <div className="desk-rise mb-16">
+        <div className="desk-rise mb-12 sm:mb-16">
           <h2 className="poster-md max-w-3xl">
             What’s on your desk right now?
           </h2>
@@ -75,7 +75,7 @@ export const DeskSection = () => {
           {items.map((item) => (
             <div
               key={item.id}
-              className="desk-rise py-10 sm:py-12 group transition-colors hover:bg-[#F8F8F6] px-4 sm:px-6 -mx-4 sm:-mx-6 rounded-lg"
+              className="desk-rise py-8 sm:py-12 group transition-colors hover:bg-[#F8F8F6] px-3 sm:px-6 -mx-3 sm:-mx-6 rounded-lg"
             >
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 mb-3">
                 <h3 className="font-display font-bold text-2xl sm:text-3xl text-ink flex items-center gap-2.5">

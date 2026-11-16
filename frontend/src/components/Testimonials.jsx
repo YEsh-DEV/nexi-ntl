@@ -64,7 +64,7 @@ export const Testimonials = () => {
     <section
       id="testimonials"
       ref={containerRef}
-      className="scene scroll-mt-20 py-20 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
+      className="scene scroll-mt-20 py-12 sm:py-20 px-4 sm:px-8 lg:px-12 max-w-7xl mx-auto"
     >
       <div className="stage max-w-5xl">
         {/* Altnota Category Tag */}

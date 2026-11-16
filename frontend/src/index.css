@@ -39,34 +39,37 @@
   font-family: var(--font-mono);
 }
 
-/* Altnota Signature Poster Typography */
+/* Altnota Signature Poster Typography - Responsive Fluid Clamping */
 .poster {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(3rem, 7.5vw, 6.5rem);
-  line-height: 0.98;
+  font-size: clamp(2.35rem, 8vw, 6.5rem);
+  line-height: 1.0;
   letter-spacing: -0.04em;
   text-wrap: balance;
   color: var(--color-ink);
+  overflow-wrap: break-word;
 }
 
 .poster-md {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2rem, 4.4vw, 3.8rem);
-  line-height: 1.05;
+  font-size: clamp(1.85rem, 4.8vw, 3.8rem);
+  line-height: 1.08;
   letter-spacing: -0.035em;
   text-wrap: balance;
   color: var(--color-ink);
+  overflow-wrap: break-word;
 }
 
 .statement-thin {
   font-family: var(--font-display);
   font-weight: 350;
-  font-size: clamp(2.2rem, 4.5vw, 4rem);
-  line-height: 1.1;
+  font-size: clamp(1.85rem, 4.5vw, 4rem);
+  line-height: 1.15;
   letter-spacing: -0.025em;
   color: var(--color-ink);
+  overflow-wrap: break-word;
 }
 
 /* Handwritten Circle Annotation */
@@ -132,14 +135,13 @@
   position: relative;
   width: 100%;
   overflow: hidden;
-  margin: 1.5rem 0;
   pointer-events: none;
 }
 
 .inkline svg {
   width: 100%;
-  height: 120px;
   display: block;
+  overflow: visible;
 }
 
 .inkline path {

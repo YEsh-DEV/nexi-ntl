@@ -5,20 +5,20 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 gsap.registerPlugin(ScrollTrigger);
 
 const PATHS = {
+  // Line 1: Hero to Nutshell (Big sweeping undulating wave)
   1: {
-    d: 'M-5 60 C 170 190, 330 40, 480 110 C 545 142, 610 170, 655 130 C 690 98, 660 48, 615 62 C 570 78, 590 150, 665 158 C 760 165, 880 120, 1005 92',
-    viewBox: '0 30 1000 180',
-    height: '110px',
+    d: 'M -20,120 C 180,240, 360,20, 540,140 C 720,260, 900,30, 1080,150 C 1220,230, 1340,60, 1460,130',
+    viewBox: '0 0 1440 260',
   },
+  // Line 2: Nutshell to How We Work (Deep flowing crest and trough)
   2: {
-    d: 'M-5 150 C 105 40, 205 40, 300 130 C 360 190, 430 190, 490 120 C 545 55, 610 55, 665 125 C 720 190, 800 185, 1005 78',
-    viewBox: '0 30 1000 180',
-    height: '110px',
+    d: 'M -20,190 C 220,30, 420,30, 600,160 C 740,250, 920,230, 1060,110 C 1200,10, 1340,60, 1460,150',
+    viewBox: '0 0 1440 260',
   },
+  // Line 3: Signature Altnota Loop-de-Loop Swirl (Before Testimonials & Contact)
   3: {
-    d: 'M-5 140 C 44 133, 98 122, 152 124 C 200 127, 232 158, 264 170 C 302 180, 352 173, 400 142 C 414 132, 440 130, 452 144 C 462 156, 458 173, 443 179 C 429 184, 419 173, 423 162 C 427 151, 440 150, 456 158 C 490 172, 524 200, 533 250',
-    viewBox: '0 30 1000 250',
-    height: '140px',
+    d: 'M -20,130 C 180,130, 340,70, 500,120 C 660,170, 780,180, 880,110 C 940,65, 960,15, 910,10 C 850,5, 830,95, 900,125 C 980,160, 1100,170, 1220,100 C 1320,40, 1400,90, 1460,140',
+    viewBox: '0 0 1440 260',
   },
 };
 
@@ -40,9 +40,9 @@ export const InkLine = ({ variant = 1 }) => {
 
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
-      start: 'top 85%',
-      end: 'bottom 45%',
-      scrub: 0.8,
+      start: 'top 90%',
+      end: 'bottom 35%',
+      scrub: 0.9,
       onUpdate: (self) => {
         const offset = length * (1 - self.progress);
         gsap.set(path, { strokeDashoffset: offset });
@@ -57,22 +57,23 @@ export const InkLine = ({ variant = 1 }) => {
   return (
     <div
       ref={containerRef}
-      className="inkline relative w-full overflow-hidden my-6 select-none pointer-events-none"
+      className="inkline relative w-full overflow-hidden my-8 sm:my-14 md:my-20 select-none pointer-events-none"
       aria-hidden="true"
     >
       <svg
         viewBox={config.viewBox}
-        preserveAspectRatio="xMidYMid meet"
-        style={{ width: '100%', height: config.height }}
+        preserveAspectRatio="none"
+        className="w-full h-28 sm:h-40 md:h-52 lg:h-64 block overflow-visible"
       >
         <path
           ref={pathRef}
           d={config.d}
           fill="none"
           stroke="#FFE500"
-          strokeWidth="4.5"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
         />
       </svg>
     </div>

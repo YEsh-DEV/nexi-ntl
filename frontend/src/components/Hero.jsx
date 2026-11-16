@@ -41,7 +41,7 @@ export const Hero = () => {
   return (
     <section
       ref={containerRef}
-      className="scene-hero pt-16 sm:pt-24 pb-16 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
+      className="scene-hero pt-12 sm:pt-20 md:pt-24 pb-12 sm:pb-16 px-4 sm:px-8 lg:px-12 max-w-7xl mx-auto"
     >
       <div className="stage max-w-5xl">
         {/* Altnota Small Mono Category Tag */}

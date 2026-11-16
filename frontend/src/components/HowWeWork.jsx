@@ -57,7 +57,7 @@ export const HowWeWork = () => {
     <section
       id="how-we-work"
       ref={containerRef}
-      className="scene scroll-mt-20 py-20 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
+      className="scene scroll-mt-20 py-12 sm:py-20 px-4 sm:px-8 lg:px-12 max-w-7xl mx-auto"
     >
       <div className="stage max-w-5xl">
         {/* Altnota Category Tag */}
@@ -67,21 +67,21 @@ export const HowWeWork = () => {
         </p>
 
         {/* Section Headline */}
-        <div className="hww-rise mb-16">
+        <div className="hww-rise mb-12 sm:mb-16">
           <h2 className="poster-md max-w-3xl">
             The answer depends on the question. So we start there.
           </h2>
-          <p className="mt-6 text-lg sm:text-xl text-soft font-display leading-relaxed">
+          <p className="mt-4 sm:mt-6 text-base sm:text-xl text-soft font-display leading-relaxed">
             It usually goes something like this:
           </p>
         </div>
 
         {/* 3 Altnota Signature Comparison Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
           {questions.map((q) => (
             <div
               key={q.id}
-              className="hww-rise p-8 border border-rule rounded-xl bg-white flex flex-col justify-between hover:border-black/40 transition-colors"
+              className="hww-rise p-6 sm:p-8 border border-rule rounded-xl bg-white flex flex-col justify-between hover:border-black/40 transition-colors"
             >
               <div>
                 <span className="font-mono text-[10px] uppercase tracking-wider text-soft block mb-4">

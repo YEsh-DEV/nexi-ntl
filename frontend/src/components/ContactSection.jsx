@@ -44,7 +44,7 @@ export const ContactSection = () => {
     <section
       id="contact"
       ref={containerRef}
-      className="scene scroll-mt-20 py-20 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
+      className="scene scroll-mt-20 py-12 sm:py-20 px-4 sm:px-8 lg:px-12 max-w-7xl mx-auto"
     >
       <div className="stage max-w-5xl">
         {/* Altnota Category Tag */}
@@ -54,17 +54,17 @@ export const ContactSection = () => {
         </p>
 
         {/* Section Headline */}
-        <div className="contact-rise mb-12">
+        <div className="contact-rise mb-10 sm:mb-12">
           <h2 className="poster-md max-w-3xl">
             Leave your mark
           </h2>
-          <p className="mt-6 text-lg sm:text-xl text-soft font-display leading-relaxed max-w-2xl">
+          <p className="mt-4 sm:mt-6 text-base sm:text-xl text-soft font-display leading-relaxed max-w-2xl">
             You don’t need to know the ordinance section number. Tell us what you’re looking at, and we’ll cite what the university bylaws say.
           </p>
         </div>
 
         {/* Altnota Clean Contact Box */}
-        <div className="contact-rise max-w-3xl border border-rule p-8 sm:p-12 rounded-2xl bg-white shadow-xs">
+        <div className="contact-rise max-w-3xl border border-rule p-6 sm:p-10 rounded-2xl bg-white shadow-xs">
           {submitted ? (
             <div className="py-8 text-center space-y-4">
               <div className="w-12 h-12 rounded-full bg-[#FFE500] text-black flex items-center justify-center mx-auto">

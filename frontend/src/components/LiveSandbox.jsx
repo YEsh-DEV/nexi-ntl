@@ -266,7 +266,7 @@ export const LiveSandbox = () => {
     <section
       id="sandbox"
       ref={containerRef}
-      className="scene scroll-mt-20 py-20 px-6 sm:px-10 lg:px-12 max-w-7xl mx-auto"
+      className="scene scroll-mt-20 py-12 sm:py-20 px-4 sm:px-8 lg:px-12 max-w-7xl mx-auto"
     >
       <div className="stage max-w-5xl">
         {/* Altnota Category Tag */}
@@ -276,11 +276,11 @@ export const LiveSandbox = () => {
         </p>
 
         {/* Section Headline */}
-        <div className="sandbox-rise mb-14">
+        <div className="sandbox-rise mb-12 sm:mb-14">
           <h2 className="poster-md max-w-3xl">
             Experience real-time voice and zero-hallucination RAG.
           </h2>
-          <p className="mt-6 text-lg sm:text-xl text-soft font-display leading-relaxed max-w-2xl">
+          <p className="mt-4 sm:mt-6 text-base sm:text-xl text-soft font-display leading-relaxed max-w-2xl">
             Speak directly through WebRTC or test queries against indexed SRM University-AP regulations in English, Telugu, and Hindi.
           </p>
         </div>
@@ -288,7 +288,7 @@ export const LiveSandbox = () => {
         {/* Altnota-style Minimalist Sandbox Container */}
         <div className="sandbox-rise border border-rule rounded-2xl bg-white overflow-hidden shadow-xs">
           {/* Top Control Bar */}
-          <div className="px-6 py-4 border-b border-rule flex flex-wrap items-center justify-between gap-4 bg-[#F8F8F6]">
+          <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-rule flex flex-wrap items-center justify-between gap-4 bg-[#F8F8F6]">
             {/* Language Selector */}
             <div className="flex items-center space-x-3">
               <span className="font-mono text-xs uppercase tracking-wider text-soft flex items-center gap-1.5">
